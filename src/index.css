@@ -170,3 +170,88 @@ button {
 .bill-row-flash {
   animation: flash-row 1.2s ease-out;
 }
+
+/* --- MOBILE RESPONSIVENESS --- */
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* Bottom Navigation */
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--glass-border);
+    padding: 12px 20px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    justify-content: space-around;
+    z-index: 1000;
+  }
+  
+  .desktop-tabs {
+    display: none !important;
+  }
+  
+  /* Add padding to body so content isn't hidden behind fixed nav */
+  body {
+    padding-bottom: 80px;
+  }
+
+  /* Responsive Table -> Cards */
+  .responsive-table {
+    display: block;
+    width: 100%;
+  }
+  .responsive-table thead {
+    display: none;
+  }
+  .responsive-table tbody {
+    display: block;
+    width: 100%;
+  }
+  .responsive-table tr {
+    display: flex;
+    flex-direction: column;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    padding: 16px;
+    position: relative;
+  }
+  
+  /* The visible header part of the card (Biller, Date, Amount, Status) */
+  .mobile-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+  
+  .responsive-table td {
+    padding: 6px 0 !important;
+    border: none !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  /* Add pseudo-labels to tds */
+  .responsive-table td::before {
+    content: attr(data-label);
+    font-weight: bold;
+    color: var(--text-muted);
+    font-size: 12px;
+    margin-right: 12px;
+  }
+  
+  .mobile-hidden {
+    display: none !important;
+  }
+}

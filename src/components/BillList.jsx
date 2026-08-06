@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { ScanLine } from 'lucide-react';
+import { ScanLine, ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function BillList({ bills, onScanRequest, onAmountUpdate, isHistory = false, urgencyMap = {}, scrollToBillId = null, onScrollComplete }) {
   const [confirmModal, setConfirmModal] = useState({ show: false, billId: null, amount: 0 });
   const [savingId, setSavingId] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
   const rowRefs = useRef({});
 
   useEffect(() => {
@@ -11,6 +12,8 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
       const el = rowRefs.current[scrollToBillId];
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       el.classList.add('bill-row-flash');
+      // Auto-expand the scrolled bill on mobile
+      setExpandedId(scrollToBillId);
       setTimeout(() => {
         el.classList.remove('bill-row-flash');
         if (onScrollComplete) onScrollComplete();
@@ -45,9 +48,13 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
     setConfirmModal({ show: false, billId: null, amount: 0 });
   };
 
+  const toggleExpand = (id) => {
+    setExpandedId(expandedId === id ? null : id);
+  };
+
   return (
     <div style={{ overflowX: 'auto', position: 'relative' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
+      <table className="responsive-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
         <thead>
           <tr style={{ color: 'var(--text-muted)', fontSize: '12px', fontWeight: 'bold' }}>
             <th style={{ padding: '16px' }}>Biller</th>
@@ -68,6 +75,7 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
             const readOnly = isPaid || isFinal || isHistory;
             const displayAmount = Number(bill.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
             const isSaving = savingId === bill.id;
+            const isExpanded = expandedId === bill.id;
             
             // Urgency class
             const urgency = urgencyMap[bill.id]; // 'warn3' | 'warn7' | undefined
@@ -85,11 +93,29 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
                 onMouseOver={(e) => { if (!rowClass) e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }} 
                 onMouseOut={(e) => { if (!rowClass) e.currentTarget.style.background = 'transparent' }}
               >
-                <td style={{ padding: '16px', fontWeight: 'bold' }}>{bill.biller}</td>
-                <td style={{ padding: '16px', color: 'var(--text-muted)' }}>{bill.statement_date || '—'}</td>
-                <td style={{ padding: '16px', color: 'var(--text-muted)' }}>{bill.due_date || '—'}</td>
-                <td style={{ padding: '16px', fontStyle: 'italic', color: 'var(--accent)', fontSize: '13px' }}>{bill.channel || ''}</td>
-                <td style={{ padding: '16px' }}>
+                {/* Mobile Header (Hidden on Desktop) */}
+                <div className="mobile-card-header mobile-only" style={{ display: 'none' }} onClick={() => toggleExpand(bill.id)}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontWeight: 'bold', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {bill.biller}
+                      {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Due: {bill.due_date || '—'}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                    <span style={{ fontWeight: 'bold', color: amountColor, fontSize: '16px' }}>₱{displayAmount}</span>
+                    <span style={{ fontWeight: 'bold', fontSize: '12px', color: isPaid ? 'var(--success)' : 'var(--warning)' }}>
+                      {bill.status}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Regular Columns (Collapsible on Mobile) */}
+                <td data-label="Biller" className={`mobile-hidden`} style={{ padding: '16px', fontWeight: 'bold' }}>{bill.biller}</td>
+                <td data-label="Statement Date" className={!isExpanded ? 'mobile-hidden' : ''} style={{ padding: '16px', color: 'var(--text-muted)' }}>{bill.statement_date || '—'}</td>
+                <td data-label="Due Date" className={`mobile-hidden`} style={{ padding: '16px', color: 'var(--text-muted)' }}>{bill.due_date || '—'}</td>
+                <td data-label="Channel" className={!isExpanded ? 'mobile-hidden' : ''} style={{ padding: '16px', fontStyle: 'italic', color: 'var(--accent)', fontSize: '13px' }}>{bill.channel || '—'}</td>
+                <td data-label="Amount" className={`mobile-hidden`} style={{ padding: '16px' }}>
                   <div className="tooltip-container" style={{ position: 'relative', width: 'max-content', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {isFinal && bill.final_date && (
                       <div className="custom-tooltip">
@@ -102,6 +128,7 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
                       defaultValue={displayAmount}
                       readOnly={readOnly}
                       onBlur={(e) => handleAmountBlur(bill.id, e.target.value, bill.amount)}
+                      onClick={(e) => e.stopPropagation()} /* Prevent card toggle when clicking input */
                       style={{ 
                         background: 'rgba(0,0,0,0.2)', 
                         border: '1px solid var(--glass-border)', 
@@ -121,20 +148,20 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
                     {isSaving && <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold' }}>Saving...</span>}
                   </div>
                 </td>
-                <td style={{ padding: '16px', fontWeight: 'bold', color: isPaid ? 'var(--success)' : 'var(--warning)' }}>
+                <td data-label="Status" className={`mobile-hidden`} style={{ padding: '16px', fontWeight: 'bold', color: isPaid ? 'var(--success)' : 'var(--warning)' }}>
                   {bill.status}
                 </td>
-                <td style={{ padding: '16px', color: 'var(--text-muted)' }}>
+                <td data-label="Paid Date" className={!isExpanded ? 'mobile-hidden' : ''} style={{ padding: '16px', color: 'var(--text-muted)' }}>
                   {isPaid && bill.paid_date ? new Date(bill.paid_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                 </td>
-                <td style={{ padding: '16px' }}>
+                <td data-label="Action" className={!isExpanded ? 'mobile-hidden' : ''} style={{ padding: '16px' }}>
                   {!isPaid ? (
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button style={{ background: 'var(--success)', color: '#fff', border: 'none', padding: '6px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>
                         Paid
                       </button>
                       <button 
-                        onClick={() => onScanRequest && onScanRequest(bill)}
+                        onClick={(e) => { e.stopPropagation(); onScanRequest && onScanRequest(bill); }}
                         title="Scan Receipt OCR"
                         style={{ background: 'rgba(56, 189, 248, 0.15)', color: 'var(--accent)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '6px 10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                       >

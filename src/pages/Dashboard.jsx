@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Plus, Wallet, FileText, CheckCircle2, History, Banknote, ChevronDown, ChevronUp } from 'lucide-react';
+import { LogOut, Plus, Wallet, FileText, CheckCircle2, History, Banknote, ChevronDown, ChevronUp, Home, AlertCircle, MinusCircle } from 'lucide-react';
 import BillList from '../components/BillList';
 import AddBillerModal from '../components/AddBillerModal';
 import RemoveBillerModal from '../components/RemoveBillerModal';
@@ -331,16 +331,20 @@ export default function Dashboard() {
   return (
     <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* HEADER */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <img src="/logo.png" alt="Bill Tracker Logo" style={{ height: '48px', width: '48px', objectFit: 'contain', borderRadius: '12px' }} />
-          <h1 style={{ fontSize: '28px', fontWeight: 'bold' }}>Monthly Bill Tracker</h1>
-          <button onClick={toggleTheme} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>
-            {theme === 'dark' ? '🌙' : '☀️'}
-          </button>
+          <img src="/logo.png" alt="Bill Tracker Logo" style={{ height: '40px', width: '40px', objectFit: 'contain', borderRadius: '10px' }} />
+          <h1 style={{ fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 'bold', margin: 0, lineHeight: 1 }}>Monthly Bill Tracker</h1>
         </div>
-        <div style={{ textAlign: 'right' }}>
-           <div style={{ color: 'var(--accent)', fontWeight: 'bold', fontSize: '20px' }}>{getGreeting()}, {getDisplayName()}!</div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+           <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+             <button onClick={toggleTheme} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: 0 }}>
+               {theme === 'dark' ? '🌙' : '☀️'}
+             </button>
+             <button onClick={handleLogout} title="Log Out" style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid var(--glass-border)', color: 'var(--danger)', padding: '6px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+               <LogOut size={18} />
+             </button>
+           </div>
            <div 
              className={actionItemsDue > 0 ? 'action-items-pulse' : ''}
              style={{ fontSize: '12px', color: actionItemsDue > 0 ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontWeight: 'bold' }} 
@@ -493,7 +497,8 @@ export default function Dashboard() {
       </div>
 
       {/* CONTROLS & TABS */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
+      {/* CONTROLS & TABS */}
+      <div className="desktop-tabs" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
         <div style={{ display: 'flex', gap: '8px', background: 'var(--glass-bg)', padding: '6px', borderRadius: '14px', border: '1px solid var(--glass-border)', overflowX: 'auto' }}>
           <TabButton active={activeTab === 'active'} onClick={() => setActiveTab('active')} badge={unpaidActiveCount}>
             📅 Active
@@ -510,7 +515,7 @@ export default function Dashboard() {
         </div>
         
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button onClick={() => setIsWithdrawOpen(true)} style={{ background: 'transparent', border: '1px solid var(--danger)', color: 'var(--danger)', padding: '8px 16px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
+          <button className="mobile-hidden" onClick={() => setIsWithdrawOpen(true)} style={{ background: 'transparent', border: '1px solid var(--danger)', color: 'var(--danger)', padding: '8px 16px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
             − Withdraw
           </button>
           <button onClick={() => setIsAddBillerOpen(true)} style={{ background: 'transparent', border: '1px solid var(--accent)', color: 'var(--accent)', padding: '8px 16px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
@@ -641,7 +646,28 @@ export default function Dashboard() {
             )}
           </div>
         </div>
-      )}
+    </div>
+      
+      {/* Mobile Bottom Navigation */}
+      <div className="mobile-bottom-nav">
+        <button onClick={() => setActiveTab('active')} style={{ background: 'none', border: 'none', color: activeTab === 'active' ? 'var(--accent)' : 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+          <Home size={24} />
+          <span style={{ fontSize: '10px', fontWeight: 'bold' }}>Home</span>
+        </button>
+        <button onClick={handleActionItemsClick} style={{ background: 'none', border: 'none', color: actionItemsDue > 0 ? 'var(--warning)' : 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer', position: 'relative' }}>
+          <AlertCircle size={24} />
+          <span style={{ fontSize: '10px', fontWeight: 'bold' }}>Due Bills</span>
+          {actionItemsDue > 0 && <span style={{ position: 'absolute', top: '-4px', right: '4px', background: 'var(--danger)', color: '#fff', fontSize: '10px', fontWeight: 'bold', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{actionItemsDue}</span>}
+        </button>
+        <button onClick={() => setActiveTab('cashLog')} style={{ background: 'none', border: 'none', color: activeTab === 'cashLog' ? 'var(--accent)' : 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+          <FileText size={24} />
+          <span style={{ fontSize: '10px', fontWeight: 'bold' }}>Cash Log</span>
+        </button>
+        <button onClick={() => setIsWithdrawOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--danger)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+          <MinusCircle size={24} />
+          <span style={{ fontSize: '10px', fontWeight: 'bold' }}>Withdraw</span>
+        </button>
+      </div>
     </div>
   );
 }
