@@ -71,7 +71,7 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
           {bills.map((bill) => {
             const isPaid = bill.status === 'Paid';
             const isFinal = bill.is_final;
-            const amountColor = isPaid ? 'var(--success)' : 'var(--text-main)';
+            const amountColor = isPaid ? 'var(--success)' : (isFinal ? 'var(--text-muted)' : '#ffffff');
             const readOnly = isPaid || isFinal || isHistory;
             const displayAmount = Number(bill.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
             const isSaving = savingId === bill.id;
@@ -94,19 +94,16 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
                 onMouseOut={(e) => { if (!rowClass) e.currentTarget.style.background = 'transparent' }}
               >
                 {/* Mobile Header (Hidden on Desktop) */}
-                <div className="mobile-card-header mobile-only" onClick={() => toggleExpand(bill.id)}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontWeight: 'bold', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {bill.biller}
+                <div className="mobile-card-header mobile-only" onClick={() => toggleExpand(bill.id)} style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{bill.biller}</span>
+                      <span style={{ fontWeight: 'bold', color: amountColor, fontSize: '16px' }}>₱{displayAmount}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Due: {bill.due_date || '—'} {bill.status === 'Paid' ? '' : bill.status}</span>
                       {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </span>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Due: {bill.due_date || '—'}</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                    <span style={{ fontWeight: 'bold', color: amountColor, fontSize: '16px' }}>₱{displayAmount}</span>
-                    <span style={{ fontWeight: 'bold', fontSize: '12px', color: isPaid ? 'var(--success)' : 'var(--warning)' }}>
-                      {bill.status}
-                    </span>
+                    </div>
                   </div>
                 </div>
 
