@@ -7,7 +7,7 @@ import AddBillerModal from '../components/AddBillerModal';
 import RemoveBillerModal from '../components/RemoveBillerModal';
 import WithdrawModal from '../components/WithdrawModal';
 import OCRScanner from '../components/OCRScanner';
-import { getCurrentMonthStr, getNextMonthStr, sortMonthsDescending, parseDueDateLogic } from '../lib/utils';
+import { getCurrentMonthStr, getNextMonthStr, sortMonthsDescending, parseDueDateLogic, withTimeout } from '../lib/utils';
 // We'll import the CashLog component shortly
 import CashLog from '../components/CashLog'; 
 
@@ -75,27 +75,31 @@ export default function Dashboard() {
 
   useEffect(() => {
     const handleOnline = async () => {
-      const queue = JSON.parse(localStorage.getItem('offline_withdrawals') || '[]');
-      if (queue.length > 0) {
-        console.log('Syncing offline withdrawals...', queue);
-        for (const item of queue) {
-           const payload = { amount: item.amount, reason: item.reason, month: item.month, user_id: item.user_id };
-           await supabase.from('withdrawals').insert(payload);
+      try {
+        const queue = JSON.parse(localStorage.getItem('offline_withdrawals') || '[]');
+        if (queue.length > 0) {
+          console.log('Syncing offline withdrawals...', queue);
+          for (const item of queue) {
+             const payload = { amount: item.amount, reason: item.reason, month: item.month, user_id: item.user_id };
+             await supabase.from('withdrawals').insert(payload);
+          }
+          localStorage.removeItem('offline_withdrawals');
         }
-        localStorage.removeItem('offline_withdrawals');
-      }
 
-      const updatesQueue = JSON.parse(localStorage.getItem('offline_bill_updates') || '[]');
-      if (updatesQueue.length > 0) {
-        console.log('Syncing offline bill updates...', updatesQueue);
-        for (const update of updatesQueue) {
-          await supabase.from('bills').update(update.payload).eq('id', update.billId);
+        const updatesQueue = JSON.parse(localStorage.getItem('offline_bill_updates') || '[]');
+        if (updatesQueue.length > 0) {
+          console.log('Syncing offline bill updates...', updatesQueue);
+          for (const update of updatesQueue) {
+            await supabase.from('bills').update(update.payload).eq('id', update.billId);
+          }
+          localStorage.removeItem('offline_bill_updates');
         }
-        localStorage.removeItem('offline_bill_updates');
-      }
 
-      if (queue.length > 0 || updatesQueue.length > 0) {
-        fetchDashboardData(true);
+        if (queue.length > 0 || updatesQueue.length > 0) {
+          fetchDashboardData(true);
+        }
+      } catch (e) {
+        console.warn("Background sync failed (likely network drop), preserving queue.", e);
       }
     };
 
@@ -116,19 +120,32 @@ export default function Dashboard() {
     try {
       let sData, bData, wData;
       
+      let fetchSuccess = false;
+
       if (navigator.onLine) {
-        // Fetch from Supabase
-        const { data: s } = await supabase.from('settings').select('*').eq('user_id', user.id).single();
-        const { data: b } = await supabase.from('bills').select('*').eq('user_id', user.id).order('id', { ascending: false });
-        const { data: w } = await supabase.from('withdrawals').select('*').eq('user_id', user.id);
-        
-        sData = s;
-        bData = b;
-        wData = w;
-        
-        // Save to cache
-        localStorage.setItem('offline_dashboard_data', JSON.stringify({ sData, bData, wData }));
-      } else {
+        try {
+          const [sRes, bRes, wRes] = await withTimeout(Promise.all([
+            supabase.from('settings').select('*').eq('user_id', user.id).single(),
+            supabase.from('bills').select('*').eq('user_id', user.id).order('id', { ascending: false }),
+            supabase.from('withdrawals').select('*').eq('user_id', user.id)
+          ]), 5000);
+
+          if (sRes.error && sRes.error.code !== 'PGRST116') throw sRes.error; // PGRST116 is "no rows found", which is fine for settings
+          if (bRes.error) throw bRes.error;
+          if (wRes.error) throw wRes.error;
+          
+          sData = sRes.data;
+          bData = bRes.data;
+          wData = wRes.data;
+          
+          fetchSuccess = true;
+          localStorage.setItem('offline_dashboard_data', JSON.stringify({ sData, bData, wData }));
+        } catch (e) {
+          console.warn("Live fetch failed or timed out, falling back to cache", e);
+        }
+      }
+
+      if (!fetchSuccess) {
         // Read from cache
         const cache = JSON.parse(localStorage.getItem('offline_dashboard_data') || '{}');
         sData = cache.sData || null;
@@ -266,16 +283,24 @@ export default function Dashboard() {
         payload.final_date = new Date().toISOString();
       }
       
+      let success = false;
       if (navigator.onLine) {
-        const { error } = await supabase.from('bills').update(payload).eq('id', billId);
-        if (error) throw error;
-        fetchDashboardData(true); // Silent fetch to prevent flicker
-      } else {
+        try {
+          const { error } = await withTimeout(supabase.from('bills').update(payload).eq('id', billId), 4000);
+          if (error) throw error;
+          success = true;
+          fetchDashboardData(true); // Silent fetch to prevent flicker
+        } catch (e) {
+          console.warn("Live update failed or timed out, falling back to offline queue");
+        }
+      }
+      
+      if (!success) {
         const queue = JSON.parse(localStorage.getItem('offline_bill_updates') || '[]');
         queue.push({ billId, payload });
         localStorage.setItem('offline_bill_updates', JSON.stringify(queue));
         updateLocalCache(billId, payload);
-        alert("You are offline. Amount saved locally and will sync when you reconnect.");
+        alert("Network unreachable. Amount saved locally and will sync later.");
       }
     } catch (e) {
       console.error("Failed to update amount", e);
@@ -286,16 +311,24 @@ export default function Dashboard() {
     try {
       const payload = { status: 'Paid', paid_date: new Date().toISOString() };
       
+      let success = false;
       if (navigator.onLine) {
-        const { error } = await supabase.from('bills').update(payload).eq('id', billId);
-        if (error) throw error;
-        fetchDashboardData(true);
-      } else {
+        try {
+          const { error } = await withTimeout(supabase.from('bills').update(payload).eq('id', billId), 4000);
+          if (error) throw error;
+          success = true;
+          fetchDashboardData(true);
+        } catch (e) {
+          console.warn("Live mark paid failed or timed out, falling back to offline queue");
+        }
+      }
+      
+      if (!success) {
         const queue = JSON.parse(localStorage.getItem('offline_bill_updates') || '[]');
         queue.push({ billId, payload });
         localStorage.setItem('offline_bill_updates', JSON.stringify(queue));
         updateLocalCache(billId, payload);
-        alert("You are offline. Bill marked as paid locally and will sync when you reconnect.");
+        alert("Network unreachable. Bill marked as paid locally and will sync later.");
       }
     } catch (e) {
       console.error("Failed to mark as paid", e);

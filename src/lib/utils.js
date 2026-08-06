@@ -48,3 +48,18 @@ export function parseDueDateLogic(str, billMonthStr) {
 
   return new Date(year, month, day);
 }
+
+export function withTimeout(promise, ms = 5000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('TIMEOUT')), ms);
+    promise
+      .then(value => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch(err => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { getCurrentMonthStr } from '../lib/utils';
+import { getCurrentMonthStr, withTimeout } from '../lib/utils';
 
 export default function WithdrawModal({ onClose, onWithdrawalAdded }) {
   const { user } = useAuth();
@@ -31,10 +31,18 @@ export default function WithdrawModal({ onClose, onWithdrawalAdded }) {
         user_id: user.id
       };
 
+      let success = false;
       if (navigator.onLine) {
-        const { error } = await supabase.from('withdrawals').insert(payload);
-        if (error) throw error;
-      } else {
+        try {
+          const { error } = await withTimeout(supabase.from('withdrawals').insert(payload), 4000);
+          if (error) throw error;
+          success = true;
+        } catch (e) {
+          console.warn("Live withdrawal log failed or timed out, falling back to offline queue");
+        }
+      }
+      
+      if (!success) {
         const queue = JSON.parse(localStorage.getItem('offline_withdrawals') || '[]');
         queue.push(payload);
         localStorage.setItem('offline_withdrawals', JSON.stringify(queue));
@@ -44,7 +52,7 @@ export default function WithdrawModal({ onClose, onWithdrawalAdded }) {
           cache.wData.push(payload);
           localStorage.setItem('offline_dashboard_data', JSON.stringify(cache));
         }
-        alert("You are offline. Withdrawal saved locally and will sync when you reconnect.");
+        alert("Network unreachable. Withdrawal saved locally and will sync later.");
       }
 
       if (onWithdrawalAdded) onWithdrawalAdded();
