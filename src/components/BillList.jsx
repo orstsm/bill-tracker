@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { ScanLine, ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function BillList({ bills, onScanRequest, onAmountUpdate, isHistory = false, urgencyMap = {}, scrollToBillId = null, onScrollComplete }) {
@@ -244,9 +245,9 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
         })}
       </div>
 
-      {/* Confirmation Modal */}
-      {confirmModal.show && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      {/* Confirmation Modal via Portal to escape backdrop-filter containing block */}
+      {confirmModal.show && createPortal(
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <div className="glass-card animate-fade-up" style={{ width: '100%', maxWidth: '300px', padding: '24px', textAlign: 'center' }}>
             <h3 style={{ marginTop: 0, marginBottom: '16px' }}>Is this the final amount?</h3>
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
@@ -264,7 +265,8 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
