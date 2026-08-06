@@ -617,6 +617,25 @@ export default function Dashboard() {
             </div>
           )}
 
+          {activeTab === 'previous' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {sortMonthsDescending(Object.keys(dashboardData.historyMonths)).map(month => {
+                const isExpanded = expandedPreviousMonth === month;
+                return (
+                  <div key={month} className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
+                    <div 
+                      onClick={() => setExpandedPreviousMonth(isExpanded ? null : month)}
+                      style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold', cursor: 'pointer' }}
+                    >
+                      {isExpanded ? '▼' : '▶'} {month}
+                    </div>
+                    {isExpanded && <BillList bills={dashboardData.historyMonths[month]} onAmountUpdate={handleAmountUpdate} isHistory={true} />}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {activeTab === 'cashLog' && (
             <CashLog withdrawals={dashboardData.recentWithdrawals} />
           )}

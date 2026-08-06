@@ -45,7 +45,7 @@ export default function CashLog({ withdrawals }) {
       title: {
         display: true,
         text: '6-Month Cash Trend',
-        color: 'var(--text-main)',
+        color: '#f8fafc',
         align: 'start',
         font: { size: 14 }
       }
@@ -53,11 +53,11 @@ export default function CashLog({ withdrawals }) {
     scales: {
       y: {
         grid: { color: 'rgba(255,255,255,0.1)' },
-        ticks: { color: 'var(--text-muted)' }
+        ticks: { color: '#ffffff' }
       },
       x: {
         grid: { display: false },
-        ticks: { color: 'var(--text-muted)' }
+        ticks: { color: '#ffffff' }
       }
     }
   };

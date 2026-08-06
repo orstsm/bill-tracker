@@ -102,7 +102,13 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
                   <td style={{ padding: '16px', color: 'var(--text-muted)' }}>{bill.due_date || '—'}</td>
                   <td style={{ padding: '16px', fontStyle: 'italic', color: 'var(--accent)', fontSize: '13px' }}>{bill.channel || '—'}</td>
                   <td style={{ padding: '16px' }}>
-                    <div style={{ position: 'relative', width: 'max-content', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div className="tooltip-container" style={{ position: 'relative', width: 'max-content', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {isFinal && bill.final_date && (
+                        <div className="custom-tooltip">
+                          Final amount entered on {new Date(bill.final_date).toLocaleDateString()}
+                          <div className="custom-tooltip-arrow" />
+                        </div>
+                      )}
                       <input
                         type="text"
                         defaultValue={displayAmount}
