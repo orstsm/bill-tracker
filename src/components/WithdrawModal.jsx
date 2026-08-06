@@ -23,15 +23,29 @@ export default function WithdrawModal({ onClose, onWithdrawalAdded }) {
         return;
       }
 
-      const { error } = await supabase.from('withdrawals').insert({
+      const payload = {
         month: currentMonth,
         amount: numAmount,
         reason: reason || 'Cash',
         date: new Date().toISOString(),
         user_id: user.id
-      });
-      
-      if (error) throw error;
+      };
+
+      if (navigator.onLine) {
+        const { error } = await supabase.from('withdrawals').insert(payload);
+        if (error) throw error;
+      } else {
+        const queue = JSON.parse(localStorage.getItem('offline_withdrawals') || '[]');
+        queue.push(payload);
+        localStorage.setItem('offline_withdrawals', JSON.stringify(queue));
+        
+        const cache = JSON.parse(localStorage.getItem('offline_dashboard_data') || '{}');
+        if (cache.wData) {
+          cache.wData.push(payload);
+          localStorage.setItem('offline_dashboard_data', JSON.stringify(cache));
+        }
+        alert("You are offline. Withdrawal saved locally and will sync when you reconnect.");
+      }
 
       if (onWithdrawalAdded) onWithdrawalAdded();
       onClose();

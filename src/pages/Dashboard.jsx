@@ -74,22 +74,58 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    const handleOnline = async () => {
+      const queue = JSON.parse(localStorage.getItem('offline_withdrawals') || '[]');
+      if (queue.length > 0) {
+        console.log('Syncing offline withdrawals...', queue);
+        for (const item of queue) {
+           const payload = { amount: item.amount, reason: item.reason, month: item.month, user_id: item.user_id };
+           await supabase.from('withdrawals').insert(payload);
+        }
+        localStorage.removeItem('offline_withdrawals');
+        fetchDashboardData(true);
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    if (navigator.onLine && user) {
+      handleOnline();
+    }
+
     if (user) {
       fetchDashboardData();
     }
+    
+    return () => window.removeEventListener('online', handleOnline);
   }, [user]);
 
   const fetchDashboardData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      // 1. Fetch Settings
-      const { data: sData } = await supabase.from('settings').select('*').eq('user_id', user.id).single();
+      let sData, bData, wData;
+      
+      if (navigator.onLine) {
+        // Fetch from Supabase
+        const { data: s } = await supabase.from('settings').select('*').eq('user_id', user.id).single();
+        const { data: b } = await supabase.from('bills').select('*').eq('user_id', user.id).order('id', { ascending: false });
+        const { data: w } = await supabase.from('withdrawals').select('*').eq('user_id', user.id);
+        
+        sData = s;
+        bData = b;
+        wData = w;
+        
+        // Save to cache
+        localStorage.setItem('offline_dashboard_data', JSON.stringify({ sData, bData, wData }));
+      } else {
+        // Read from cache
+        const cache = JSON.parse(localStorage.getItem('offline_dashboard_data') || '{}');
+        sData = cache.sData || null;
+        bData = cache.bData || [];
+        wData = cache.wData || [];
+      }
+
       const stgs = { income: sData?.monthly_income || 0, savings: sData?.savings_account_balance || 0 };
       setSettings(stgs);
-
-      // 2. Fetch Bills & Withdrawals
-      const { data: bData } = await supabase.from('bills').select('*').eq('user_id', user.id).order('id', { ascending: false });
-      const { data: wData } = await supabase.from('withdrawals').select('*').eq('user_id', user.id);
 
       const currentMonth = getCurrentMonthStr();
       const nextMonth = getNextMonthStr();
