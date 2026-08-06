@@ -83,6 +83,18 @@ export default function Dashboard() {
            await supabase.from('withdrawals').insert(payload);
         }
         localStorage.removeItem('offline_withdrawals');
+      }
+
+      const updatesQueue = JSON.parse(localStorage.getItem('offline_bill_updates') || '[]');
+      if (updatesQueue.length > 0) {
+        console.log('Syncing offline bill updates...', updatesQueue);
+        for (const update of updatesQueue) {
+          await supabase.from('bills').update(update.payload).eq('id', update.billId);
+        }
+        localStorage.removeItem('offline_bill_updates');
+      }
+
+      if (queue.length > 0 || updatesQueue.length > 0) {
         fetchDashboardData(true);
       }
     };
@@ -236,6 +248,16 @@ export default function Dashboard() {
     }
   };
 
+  const updateLocalCache = (billId, payload) => {
+    const cache = JSON.parse(localStorage.getItem('offline_dashboard_data') || '{}');
+    if (cache.bData) {
+      cache.bData = cache.bData.map(b => b.id === billId ? { ...b, ...payload } : b);
+      localStorage.setItem('offline_dashboard_data', JSON.stringify(cache));
+      // Trigger a silent re-fetch so UI updates instantly based on modified cache
+      fetchDashboardData(true);
+    }
+  };
+
   const handleAmountUpdate = async (billId, newAmount, isFinal = false) => {
     try {
       const payload = { amount: newAmount };
@@ -244,11 +266,39 @@ export default function Dashboard() {
         payload.final_date = new Date().toISOString();
       }
       
-      const { error } = await supabase.from('bills').update(payload).eq('id', billId);
-      if (error) throw error;
-      fetchDashboardData(true); // Silent fetch to prevent flicker
+      if (navigator.onLine) {
+        const { error } = await supabase.from('bills').update(payload).eq('id', billId);
+        if (error) throw error;
+        fetchDashboardData(true); // Silent fetch to prevent flicker
+      } else {
+        const queue = JSON.parse(localStorage.getItem('offline_bill_updates') || '[]');
+        queue.push({ billId, payload });
+        localStorage.setItem('offline_bill_updates', JSON.stringify(queue));
+        updateLocalCache(billId, payload);
+        alert("You are offline. Amount saved locally and will sync when you reconnect.");
+      }
     } catch (e) {
       console.error("Failed to update amount", e);
+    }
+  };
+
+  const handleMarkAsPaid = async (billId) => {
+    try {
+      const payload = { status: 'Paid', paid_date: new Date().toISOString() };
+      
+      if (navigator.onLine) {
+        const { error } = await supabase.from('bills').update(payload).eq('id', billId);
+        if (error) throw error;
+        fetchDashboardData(true);
+      } else {
+        const queue = JSON.parse(localStorage.getItem('offline_bill_updates') || '[]');
+        queue.push({ billId, payload });
+        localStorage.setItem('offline_bill_updates', JSON.stringify(queue));
+        updateLocalCache(billId, payload);
+        alert("You are offline. Bill marked as paid locally and will sync when you reconnect.");
+      }
+    } catch (e) {
+      console.error("Failed to mark as paid", e);
     }
   };
 
@@ -583,6 +633,7 @@ export default function Dashboard() {
                 bills={dashboardData.currentBills} 
                 onScanRequest={() => setIsScanning(true)} 
                 onAmountUpdate={handleAmountUpdate} 
+                onMarkPaid={handleMarkAsPaid}
                 urgencyMap={urgencyMap}
                 scrollToBillId={scrollToBillId}
                 onScrollComplete={() => setScrollToBillId(null)}
@@ -601,6 +652,7 @@ export default function Dashboard() {
                     bills={dashboardData.currentBills.filter(b => urgencyMap[b.id] && b.status !== 'Paid')} 
                     onScanRequest={() => setIsScanning(true)} 
                     onAmountUpdate={handleAmountUpdate} 
+                    onMarkPaid={handleMarkAsPaid}
                     urgencyMap={urgencyMap}
                     scrollToBillId={scrollToBillId}
                     onScrollComplete={() => setScrollToBillId(null)}
@@ -628,7 +680,7 @@ export default function Dashboard() {
                           >
                             {isExpanded ? '▼' : '▶'} {month}
                           </div>
-                          {isExpanded && <BillList bills={dashboardData.historyMonths[month]} onAmountUpdate={handleAmountUpdate} isHistory={true} />}
+                          {isExpanded && <BillList bills={dashboardData.historyMonths[month]} onAmountUpdate={handleAmountUpdate} onMarkPaid={handleMarkAsPaid} isHistory={true} />}
                         </div>
                       );
                     })}
@@ -645,7 +697,7 @@ export default function Dashboard() {
                   <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold' }}>
                     ▼ {dashboardData.upcomingMonth} (Upcoming)
                   </div>
-                  <BillList bills={dashboardData.upcomingBills} onAmountUpdate={handleAmountUpdate} />
+                  <BillList bills={dashboardData.upcomingBills} onAmountUpdate={handleAmountUpdate} onMarkPaid={handleMarkAsPaid} />
                 </div>
               ) : (
                 <p>No incoming bills generated for next month yet.<br/>They will appear here automatically on the 15th.</p>
@@ -665,7 +717,7 @@ export default function Dashboard() {
                     >
                       {isExpanded ? '▼' : '▶'} {month}
                     </div>
-                    {isExpanded && <BillList bills={dashboardData.historyMonths[month]} onAmountUpdate={handleAmountUpdate} isHistory={true} />}
+                    {isExpanded && <BillList bills={dashboardData.historyMonths[month]} onAmountUpdate={handleAmountUpdate} onMarkPaid={handleMarkAsPaid} isHistory={true} />}
                   </div>
                 );
               })}

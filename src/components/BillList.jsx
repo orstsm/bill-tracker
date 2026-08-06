@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ScanLine, ChevronDown, ChevronUp } from 'lucide-react';
 
-export default function BillList({ bills, onScanRequest, onAmountUpdate, isHistory = false, urgencyMap = {}, scrollToBillId = null, onScrollComplete }) {
+export default function BillList({ bills, onScanRequest, onAmountUpdate, onMarkPaid, isHistory = false, urgencyMap = {}, scrollToBillId = null, onScrollComplete }) {
   const [confirmModal, setConfirmModal] = useState({ show: false, billId: null, amount: 0 });
   const [savingId, setSavingId] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
@@ -132,7 +132,7 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
                   <td style={{ padding: '16px' }}>
                     {!isPaid ? (
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <button style={{ background: 'var(--success)', color: '#fff', border: 'none', padding: '6px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>Paid</button>
+                        <button onClick={(e) => { e.stopPropagation(); onMarkPaid && onMarkPaid(bill.id); }} style={{ background: 'var(--success)', color: '#fff', border: 'none', padding: '6px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>Paid</button>
                         <button
                           onClick={() => onScanRequest && onScanRequest(bill)}
                           title="Scan Receipt OCR"
@@ -239,7 +239,7 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
                   </div>
                   {!isPaid && (
                     <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                      <button style={{ flex: 1, background: 'var(--success)', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}>
+                      <button onClick={(e) => { e.stopPropagation(); onMarkPaid && onMarkPaid(bill.id); }} style={{ flex: 1, background: 'var(--success)', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}>
                         Mark as Paid
                       </button>
                       <button
