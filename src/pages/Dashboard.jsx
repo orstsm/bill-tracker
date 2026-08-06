@@ -646,7 +646,7 @@ export default function Dashboard() {
             )}
           </div>
         </div>
-    </div>
+      )}
       
       {/* Mobile Bottom Navigation */}
       <div className="mobile-bottom-nav">
