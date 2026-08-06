@@ -1,0 +1,172 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+
+:root {
+  /* Dynamic Theme Engine */
+  --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --glass-bg: rgba(30, 41, 59, 0.4);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --glass-blur: blur(12px);
+  --accent: #38bdf8;
+  --accent-hover: #0ea5e9;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+}
+
+[data-theme='light'] {
+  --bg-gradient: linear-gradient(135deg, #e0e7ff 0%, #f1f5f9 100%);
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --glass-bg: rgba(255, 255, 255, 0.5);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+  --glass-blur: blur(12px);
+  --accent: #0ea5e9;
+  --accent-hover: #0284c7;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg-gradient);
+  background-attachment: fixed;
+  color: var(--text-main);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  box-shadow: var(--glass-shadow);
+  padding: 24px;
+}
+
+/* Animations */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.4s ease-out forwards;
+}
+
+/* Base Styles */
+input, button {
+  font-family: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--glass-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Custom Fast Tooltip */
+.tooltip-container .custom-tooltip {
+  display: none;
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #3b82f6;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 10;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+  pointer-events: none;
+  margin-bottom: 8px;
+}
+
+.tooltip-container:hover .custom-tooltip {
+  display: block;
+}
+
+.custom-tooltip-arrow {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #3b82f6;
+}
+
+/* Action Items Pulse Animation */
+@keyframes pulse-action {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.action-items-pulse {
+  animation: pulse-action 1.5s ease-in-out infinite;
+}
+
+/* Bill Row Urgency Highlighting */
+.bill-row-warn-7 {
+  background: rgba(234, 179, 8, 0.08) !important;
+  border-left: 3px solid #eab308;
+}
+.bill-row-warn-7:hover {
+  background: rgba(234, 179, 8, 0.14) !important;
+}
+
+.bill-row-warn-3 {
+  background: rgba(249, 115, 22, 0.12) !important;
+  border-left: 3px solid #f97316;
+}
+.bill-row-warn-3:hover {
+  background: rgba(249, 115, 22, 0.2) !important;
+}
+
+/* Flash animation when scrolling to a due bill */
+@keyframes flash-row {
+  0% { background: rgba(234, 179, 8, 0.4); }
+  25% { background: transparent; }
+  50% { background: rgba(234, 179, 8, 0.3); }
+  75% { background: transparent; }
+  100% { background: rgba(234, 179, 8, 0.1); }
+}
+
+.bill-row-flash {
+  animation: flash-row 1.2s ease-out;
+}
