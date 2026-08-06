@@ -71,7 +71,7 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
           {bills.map((bill) => {
             const isPaid = bill.status === 'Paid';
             const isFinal = bill.is_final;
-            const amountColor = isPaid ? 'var(--success)' : (isFinal ? 'var(--text-muted)' : '#ffffff');
+            const amountColor = isPaid ? 'var(--success)' : (isFinal ? 'var(--text-muted)' : 'var(--text-main)');
             const readOnly = isPaid || isFinal || isHistory;
             const displayAmount = Number(bill.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
             const isSaving = savingId === bill.id;
@@ -108,10 +108,18 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
                 </div>
 
                 {/* Regular Columns (Collapsible on Mobile) */}
-                <td data-label="Biller" className={`mobile-hidden`} style={{ padding: '16px', fontWeight: 'bold' }}>{bill.biller}</td>
-                <td data-label="Statement Date" className={!isExpanded ? 'mobile-hidden' : ''} style={{ padding: '16px', color: 'var(--text-muted)' }}>{bill.statement_date || '—'}</td>
-                <td data-label="Due Date" className={`mobile-hidden`} style={{ padding: '16px', color: 'var(--text-muted)' }}>{bill.due_date || '—'}</td>
-                <td data-label="Channel" className={!isExpanded ? 'mobile-hidden' : ''} style={{ padding: '16px', fontStyle: 'italic', color: 'var(--accent)', fontSize: '13px' }}>{bill.channel || '—'}</td>
+                <td data-label="Biller" className={`mobile-hidden`} style={{ padding: '16px', fontWeight: 'bold' }}>
+                  <span>{bill.biller}</span>
+                </td>
+                <td data-label="Statement Date" className={!isExpanded ? 'mobile-hidden' : ''} style={{ padding: '16px', color: 'var(--text-muted)' }}>
+                  <span>{bill.statement_date || '—'}</span>
+                </td>
+                <td data-label="Due Date" className={`mobile-hidden`} style={{ padding: '16px', color: 'var(--text-muted)' }}>
+                  <span>{bill.due_date || '—'}</span>
+                </td>
+                <td data-label="Channel" className={!isExpanded ? 'mobile-hidden' : ''} style={{ padding: '16px', fontStyle: 'italic', color: 'var(--accent)', fontSize: '13px' }}>
+                  <span>{bill.channel || '—'}</span>
+                </td>
                 <td data-label="Amount" className={`mobile-hidden`} style={{ padding: '16px' }}>
                   <div className="tooltip-container" style={{ position: 'relative', width: 'max-content', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {isFinal && bill.final_date && (
@@ -146,10 +154,10 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
                   </div>
                 </td>
                 <td data-label="Status" className={`mobile-hidden`} style={{ padding: '16px', fontWeight: 'bold', color: isPaid ? 'var(--success)' : 'var(--warning)' }}>
-                  {bill.status}
+                  <span>{bill.status}</span>
                 </td>
                 <td data-label="Paid Date" className={!isExpanded ? 'mobile-hidden' : ''} style={{ padding: '16px', color: 'var(--text-muted)' }}>
-                  {isPaid && bill.paid_date ? new Date(bill.paid_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                  <span>{isPaid && bill.paid_date ? new Date(bill.paid_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</span>
                 </td>
                 <td data-label="Action" className={!isExpanded ? 'mobile-hidden' : ''} style={{ padding: '16px' }}>
                   {!isPaid ? (
