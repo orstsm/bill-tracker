@@ -12,7 +12,6 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
       const el = rowRefs.current[scrollToBillId];
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       el.classList.add('bill-row-flash');
-      // Auto-expand the scrolled bill on mobile
       setExpandedId(scrollToBillId);
       setTimeout(() => {
         el.classList.remove('bill-row-flash');
@@ -33,7 +32,6 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
     let cleanVal = String(newValue).replace(/,/g, '');
     let numVal = parseFloat(cleanVal);
     let origVal = parseFloat(originalValue);
-    
     if (!isNaN(numVal) && numVal !== origVal) {
       setConfirmModal({ show: true, billId, amount: numVal });
     }
@@ -52,136 +50,199 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
     setExpandedId(expandedId === id ? null : id);
   };
 
-  return (
-    <div style={{ overflowX: 'auto', position: 'relative' }}>
-      <table className="responsive-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
-        <thead>
-          <tr style={{ color: 'var(--text-muted)', fontSize: '12px', fontWeight: 'bold' }}>
-            <th style={{ padding: '16px' }}>Biller</th>
-            <th style={{ padding: '16px' }}>Statement Date</th>
-            <th style={{ padding: '16px' }}>Due Date</th>
-            <th style={{ padding: '16px' }}>Channel</th>
-            <th style={{ padding: '16px' }}>Amount</th>
-            <th style={{ padding: '16px' }}>Status</th>
-            <th style={{ padding: '16px' }}>Paid Date</th>
-            <th style={{ padding: '16px' }}>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {bills.map((bill) => {
-            const isPaid = bill.status === 'Paid';
-            const isFinal = bill.is_final;
-            const amountColor = isPaid ? 'var(--success)' : (isFinal ? 'var(--text-muted)' : 'var(--text-main)');
-            const readOnly = isPaid || isFinal || isHistory;
-            const displayAmount = Number(bill.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
-            const isSaving = savingId === bill.id;
-            const isExpanded = expandedId === bill.id;
-            
-            // Urgency class
-            const urgency = urgencyMap[bill.id]; // 'warn3' | 'warn7' | undefined
-            let rowClass = '';
-            if (urgency === 'warn3') rowClass = 'bill-row-warn-3';
-            else if (urgency === 'warn7') rowClass = 'bill-row-warn-7';
-            
-            return (
-              <tr 
-                key={bill.id} 
-                ref={el => rowRefs.current[bill.id] = el}
-                id={`bill-row-${bill.id}`}
-                className={rowClass}
-                style={{ borderTop: '1px solid var(--glass-border)', transition: 'background 0.2s', fontSize: '14px' }} 
-                onMouseOver={(e) => { if (!rowClass) e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }} 
-                onMouseOut={(e) => { if (!rowClass) e.currentTarget.style.background = 'transparent' }}
-              >
-                {/* Mobile Header (Hidden on Desktop) */}
-                <div className="mobile-card-header mobile-only" onClick={() => toggleExpand(bill.id)} style={{ width: '100%' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{bill.biller}</span>
-                      <span style={{ fontWeight: 'bold', color: amountColor, fontSize: '16px' }}>₱{displayAmount}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Due: {bill.due_date || '—'} {bill.status === 'Paid' ? '' : bill.status}</span>
-                      {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </div>
-                  </div>
-                </div>
+  const getAmountColor = (isPaid, isFinal) => {
+    if (isPaid) return 'var(--success)';
+    if (isFinal) return 'var(--text-muted)';
+    return 'var(--text-main)';
+  };
 
-                {/* Regular Columns (Collapsible on Mobile) */}
-                <td data-label="Biller" className={`mobile-hidden`} style={{ padding: '16px', fontWeight: 'bold' }}>
-                  <span>{bill.biller}</span>
-                </td>
-                <td data-label="Statement Date" className={!isExpanded ? 'mobile-hidden' : ''} style={{ padding: '16px', color: 'var(--text-muted)' }}>
-                  <span>{bill.statement_date || '—'}</span>
-                </td>
-                <td data-label="Due Date" className={`mobile-hidden`} style={{ padding: '16px', color: 'var(--text-muted)' }}>
-                  <span>{bill.due_date || '—'}</span>
-                </td>
-                <td data-label="Channel" className={!isExpanded ? 'mobile-hidden' : ''} style={{ padding: '16px', fontStyle: 'italic', color: 'var(--accent)', fontSize: '13px' }}>
-                  <span>{bill.channel || '—'}</span>
-                </td>
-                <td data-label="Amount" className={`mobile-hidden`} style={{ padding: '16px' }}>
-                  <div className="tooltip-container" style={{ position: 'relative', width: 'max-content', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {isFinal && bill.final_date && (
-                      <div className="custom-tooltip">
-                        Final amount entered on {new Date(bill.final_date).toLocaleDateString()}
-                        <div className="custom-tooltip-arrow" />
+  return (
+    <div style={{ position: 'relative' }}>
+      {/* ==================== DESKTOP TABLE ==================== */}
+      <div className="desktop-only" style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
+          <thead>
+            <tr style={{ color: 'var(--text-muted)', fontSize: '12px', fontWeight: 'bold' }}>
+              <th style={{ padding: '16px' }}>Biller</th>
+              <th style={{ padding: '16px' }}>Statement Date</th>
+              <th style={{ padding: '16px' }}>Due Date</th>
+              <th style={{ padding: '16px' }}>Channel</th>
+              <th style={{ padding: '16px' }}>Amount</th>
+              <th style={{ padding: '16px' }}>Status</th>
+              <th style={{ padding: '16px' }}>Paid Date</th>
+              <th style={{ padding: '16px' }}>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {bills.map((bill) => {
+              const isPaid = bill.status === 'Paid';
+              const isFinal = bill.is_final;
+              const amountColor = getAmountColor(isPaid, isFinal);
+              const readOnly = isPaid || isFinal || isHistory;
+              const displayAmount = Number(bill.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+              const isSaving = savingId === bill.id;
+              const urgency = urgencyMap[bill.id];
+              let rowClass = '';
+              if (urgency === 'warn3') rowClass = 'bill-row-warn-3';
+              else if (urgency === 'warn7') rowClass = 'bill-row-warn-7';
+
+              return (
+                <tr
+                  key={bill.id}
+                  ref={el => rowRefs.current[bill.id] = el}
+                  id={`bill-row-${bill.id}`}
+                  className={rowClass}
+                  style={{ borderTop: '1px solid var(--glass-border)', transition: 'background 0.2s', fontSize: '14px' }}
+                  onMouseOver={(e) => { if (!rowClass) e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
+                  onMouseOut={(e) => { if (!rowClass) e.currentTarget.style.background = 'transparent' }}
+                >
+                  <td style={{ padding: '16px', fontWeight: 'bold' }}>{bill.biller}</td>
+                  <td style={{ padding: '16px', color: 'var(--text-muted)' }}>{bill.statement_date || '—'}</td>
+                  <td style={{ padding: '16px', color: 'var(--text-muted)' }}>{bill.due_date || '—'}</td>
+                  <td style={{ padding: '16px', fontStyle: 'italic', color: 'var(--accent)', fontSize: '13px' }}>{bill.channel || '—'}</td>
+                  <td style={{ padding: '16px' }}>
+                    <div style={{ position: 'relative', width: 'max-content', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="text"
+                        defaultValue={displayAmount}
+                        readOnly={readOnly}
+                        onBlur={(e) => handleAmountBlur(bill.id, e.target.value, bill.amount)}
+                        style={{
+                          background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)',
+                          padding: '8px 12px', borderRadius: '6px', color: amountColor,
+                          fontWeight: 'bold', width: '120px', outline: 'none',
+                          cursor: readOnly ? 'default' : 'text', opacity: readOnly && !isPaid ? 0.7 : 1
+                        }}
+                        onFocus={(e) => { if (!readOnly) e.target.style.borderColor = 'var(--accent)' }}
+                      />
+                      {isSaving && <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold' }}>Saving...</span>}
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px', fontWeight: 'bold', color: isPaid ? 'var(--success)' : 'var(--warning)' }}>{bill.status}</td>
+                  <td style={{ padding: '16px', color: 'var(--text-muted)' }}>
+                    {isPaid && bill.paid_date ? new Date(bill.paid_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                  </td>
+                  <td style={{ padding: '16px' }}>
+                    {!isPaid ? (
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button style={{ background: 'var(--success)', color: '#fff', border: 'none', padding: '6px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>Paid</button>
+                        <button
+                          onClick={() => onScanRequest && onScanRequest(bill)}
+                          title="Scan Receipt OCR"
+                          style={{ background: 'rgba(56, 189, 248, 0.15)', color: 'var(--accent)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '6px 10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                        >
+                          <ScanLine size={14} />
+                        </button>
                       </div>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)' }}>—</span>
                     )}
-                    <input 
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ==================== MOBILE CARDS ==================== */}
+      <div className="mobile-only">
+        {bills.map((bill) => {
+          const isPaid = bill.status === 'Paid';
+          const isFinal = bill.is_final;
+          const amountColor = getAmountColor(isPaid, isFinal);
+          const readOnly = isPaid || isFinal || isHistory;
+          const displayAmount = Number(bill.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+          const isSaving = savingId === bill.id;
+          const isExpanded = expandedId === bill.id;
+          const urgency = urgencyMap[bill.id];
+          let cardClass = 'mobile-bill-card';
+          if (urgency === 'warn3') cardClass += ' bill-row-warn-3';
+          else if (urgency === 'warn7') cardClass += ' bill-row-warn-7';
+
+          return (
+            <div
+              key={bill.id}
+              ref={el => rowRefs.current[bill.id] = el}
+              id={`bill-row-${bill.id}`}
+              className={cardClass}
+              style={{
+                background: 'var(--glass-bg)',
+                border: '1px solid var(--glass-border)',
+                borderRadius: '12px',
+                marginBottom: '12px',
+                padding: '16px',
+                transition: 'background 0.2s',
+              }}
+            >
+              {/* Card Header — always visible */}
+              <div onClick={() => toggleExpand(bill.id)} style={{ cursor: 'pointer' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{bill.biller}</span>
+                  <span style={{ fontWeight: 'bold', color: amountColor, fontSize: '16px' }}>₱{displayAmount}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+                    Due: {bill.due_date || '—'} - {bill.status === 'Paid' ? <span style={{ color: 'var(--success)' }}>Paid</span> : bill.status}
+                  </span>
+                  {isExpanded ? <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />}
+                </div>
+              </div>
+
+              {/* Expanded Details */}
+              {isExpanded && (
+                <div style={{ marginTop: '12px', borderTop: '1px solid var(--glass-border)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontWeight: 'bold', color: 'var(--text-muted)', fontSize: '12px' }}>Statement Date</span>
+                    <span style={{ fontSize: '14px' }}>{bill.statement_date || '—'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontWeight: 'bold', color: 'var(--text-muted)', fontSize: '12px' }}>Channel</span>
+                    <span style={{ fontSize: '14px', fontStyle: 'italic', color: 'var(--accent)' }}>{bill.channel || '—'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 'bold', color: 'var(--text-muted)', fontSize: '12px' }}>Amount</span>
+                    <input
                       type="text"
                       defaultValue={displayAmount}
                       readOnly={readOnly}
                       onBlur={(e) => handleAmountBlur(bill.id, e.target.value, bill.amount)}
-                      onClick={(e) => e.stopPropagation()} /* Prevent card toggle when clicking input */
-                      style={{ 
-                        background: 'rgba(0,0,0,0.2)', 
-                        border: '1px solid var(--glass-border)', 
-                        padding: '8px 12px', 
-                        borderRadius: '6px',
-                        color: amountColor,
-                        fontWeight: 'bold',
-                        width: '120px',
-                        outline: 'none',
-                        transition: 'border-color 0.2s',
-                        cursor: readOnly ? 'default' : 'text',
-                        opacity: readOnly && !isPaid ? 0.7 : 1
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)',
+                        padding: '6px 10px', borderRadius: '6px', color: amountColor,
+                        fontWeight: 'bold', width: '100px', outline: 'none', textAlign: 'right',
+                        cursor: readOnly ? 'default' : 'text', opacity: readOnly && !isPaid ? 0.7 : 1
                       }}
-                      onFocus={(e) => { if(!readOnly) e.target.style.borderColor = 'var(--accent)' }}
-                      onMouseOut={(e) => { if(!readOnly && document.activeElement !== e.target) e.target.style.borderColor = 'var(--glass-border)' }}
                     />
-                    {isSaving && <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold' }}>Saving...</span>}
                   </div>
-                </td>
-                <td data-label="Status" className={`mobile-hidden`} style={{ padding: '16px', fontWeight: 'bold', color: isPaid ? 'var(--success)' : 'var(--warning)' }}>
-                  <span>{bill.status}</span>
-                </td>
-                <td data-label="Paid Date" className={!isExpanded ? 'mobile-hidden' : ''} style={{ padding: '16px', color: 'var(--text-muted)' }}>
-                  <span>{isPaid && bill.paid_date ? new Date(bill.paid_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</span>
-                </td>
-                <td data-label="Action" className={!isExpanded ? 'mobile-hidden' : ''} style={{ padding: '16px' }}>
-                  {!isPaid ? (
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button style={{ background: 'var(--success)', color: '#fff', border: 'none', padding: '6px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>
-                        Paid
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontWeight: 'bold', color: 'var(--text-muted)', fontSize: '12px' }}>Paid Date</span>
+                    <span style={{ fontSize: '14px' }}>
+                      {isPaid && bill.paid_date ? new Date(bill.paid_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                    </span>
+                  </div>
+                  {!isPaid && (
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                      <button style={{ flex: 1, background: 'var(--success)', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}>
+                        Mark as Paid
                       </button>
-                      <button 
+                      <button
                         onClick={(e) => { e.stopPropagation(); onScanRequest && onScanRequest(bill); }}
                         title="Scan Receipt OCR"
-                        style={{ background: 'rgba(56, 189, 248, 0.15)', color: 'var(--accent)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '6px 10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                        style={{ background: 'rgba(56, 189, 248, 0.15)', color: 'var(--accent)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '10px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                       >
-                        <ScanLine size={14} />
+                        <ScanLine size={16} />
                       </button>
                     </div>
-                  ) : (
-                    <span style={{ color: 'var(--text-muted)', paddingLeft: '8px' }}>—</span>
                   )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                  {isSaving && <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold', textAlign: 'center' }}>Saving...</span>}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
 
       {/* Confirmation Modal */}
       {confirmModal.show && (
@@ -189,13 +250,13 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
           <div className="glass-card animate-fade-up" style={{ width: '100%', maxWidth: '300px', padding: '24px', textAlign: 'center' }}>
             <h3 style={{ marginTop: 0, marginBottom: '16px' }}>Is this the final amount?</h3>
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-              <button 
+              <button
                 onClick={() => handleConfirmFinal(false)}
                 style={{ flex: 1, background: 'rgba(255,255,255,0.1)', color: 'var(--text-main)', border: '1px solid var(--glass-border)', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
               >
                 No
               </button>
-              <button 
+              <button
                 onClick={() => handleConfirmFinal(true)}
                 style={{ flex: 1, background: 'var(--success)', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
               >
