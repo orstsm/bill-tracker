@@ -94,7 +94,7 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
                 onMouseOut={(e) => { if (!rowClass) e.currentTarget.style.background = 'transparent' }}
               >
                 {/* Mobile Header (Hidden on Desktop) */}
-                <div className="mobile-card-header mobile-only" style={{ display: 'none' }} onClick={() => toggleExpand(bill.id)}>
+                <div className="mobile-card-header mobile-only" onClick={() => toggleExpand(bill.id)}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <span style={{ fontWeight: 'bold', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       {bill.biller}

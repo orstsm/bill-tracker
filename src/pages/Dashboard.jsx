@@ -310,6 +310,10 @@ export default function Dashboard() {
   };
 
   const handleActionItemsClick = () => {
+    if (actionItemsDue === 0) {
+      alert('No bill is due within 7 days');
+      return;
+    }
     setActiveTab('active');
     if (firstDueBillId) {
       // Small delay to let tab switch render first
@@ -331,29 +335,26 @@ export default function Dashboard() {
   return (
     <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* HEADER */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <img src="/logo.png" alt="Bill Tracker Logo" style={{ height: '40px', width: '40px', objectFit: 'contain', borderRadius: '10px' }} />
-          <h1 style={{ fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 'bold', margin: 0, lineHeight: 1 }}>Monthly Bill Tracker</h1>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h1 style={{ fontSize: '26px', fontWeight: 'bold', margin: 0, lineHeight: 1 }}>Bill Tracker</h1>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+            <button onClick={toggleTheme} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', padding: 0 }}>
+              {theme === 'dark' ? '🌙' : '☀️'}
+            </button>
+            <button onClick={handleLogout} title="Log Out" style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid var(--glass-border)', color: 'var(--danger)', padding: '6px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <LogOut size={18} />
+            </button>
+          </div>
+        </header>
+        <div 
+          className={actionItemsDue > 0 ? 'action-items-pulse' : ''}
+          style={{ fontSize: '12px', color: actionItemsDue > 0 ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontWeight: 'bold' }} 
+          onClick={handleActionItemsClick}
+        >
+          {actionItemsDue > 0 ? `You have ${actionItemsDue} action item(s) due!` : 'No action items due! ✓'}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-           <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-             <button onClick={toggleTheme} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: 0 }}>
-               {theme === 'dark' ? '🌙' : '☀️'}
-             </button>
-             <button onClick={handleLogout} title="Log Out" style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid var(--glass-border)', color: 'var(--danger)', padding: '6px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-               <LogOut size={18} />
-             </button>
-           </div>
-           <div 
-             className={actionItemsDue > 0 ? 'action-items-pulse' : ''}
-             style={{ fontSize: '12px', color: actionItemsDue > 0 ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontWeight: 'bold' }} 
-             onClick={handleActionItemsClick}
-           >
-             {actionItemsDue > 0 ? `You have ${actionItemsDue} action item(s) due!` : 'No action items due! ✓'}
-           </div>
-        </div>
-      </header>
+      </div>
 
       {/* SUMMARY WIDGETS */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
@@ -531,7 +532,7 @@ export default function Dashboard() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Loading dashboard...</div>
       ) : (
-        <div className="animate-fade-up">
+        <div key={activeTab} className="animate-tab-switch">
           {activeTab === 'active' && (
             <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
               <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>

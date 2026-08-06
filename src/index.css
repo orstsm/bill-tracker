@@ -171,6 +171,18 @@ button {
   animation: flash-row 1.2s ease-out;
 }
 
+@keyframes fade-slide {
+  0% { opacity: 0; transform: translateX(-10px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+.animate-tab-switch {
+  animation: fade-slide 0.2s ease-out;
+}
+
+.mobile-card-header {
+  display: none;
+}
+
 /* --- MOBILE RESPONSIVENESS --- */
 .mobile-bottom-nav {
   display: none;
