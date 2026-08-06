@@ -217,6 +217,14 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, isHisto
                       }}
                     />
                   </div>
+                  {isFinal && bill.final_date && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '-6px' }}>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}></span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontStyle: 'italic' }}>
+                        Final amount entered on {new Date(bill.final_date).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ fontWeight: 'bold', color: 'var(--text-muted)', fontSize: '12px' }}>Paid Date</span>
                     <span style={{ fontSize: '14px' }}>

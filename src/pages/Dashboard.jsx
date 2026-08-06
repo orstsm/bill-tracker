@@ -555,24 +555,48 @@ export default function Dashboard() {
           )}
 
           {activeTab === 'due' && (
-            <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
-              <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold' }}>
-                ▼ Due Bills (Within 7 Days)
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
+                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold' }}>
+                  ▼ Due Bills (Within 7 Days)
+                </div>
+                {dashboardData.currentBills.filter(b => urgencyMap[b.id] && b.status !== 'Paid').length > 0 ? (
+                  <BillList 
+                    bills={dashboardData.currentBills.filter(b => urgencyMap[b.id] && b.status !== 'Paid')} 
+                    onScanRequest={() => setIsScanning(true)} 
+                    onAmountUpdate={handleAmountUpdate} 
+                    urgencyMap={urgencyMap}
+                    scrollToBillId={scrollToBillId}
+                    onScrollComplete={() => setScrollToBillId(null)}
+                  />
+                ) : (
+                  <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--success)' }}>
+                    <span style={{ fontSize: '32px' }}>🎉</span><br/><br/>
+                    <strong style={{ fontSize: '18px' }}>No bills due at the moment!</strong><br/>
+                    <span style={{ color: 'var(--text-muted)' }}>Everything within the next 7 days is paid or clear.</span>
+                  </div>
+                )}
               </div>
-              {dashboardData.currentBills.filter(b => urgencyMap[b.id] && b.status !== 'Paid').length > 0 ? (
-                <BillList 
-                  bills={dashboardData.currentBills.filter(b => urgencyMap[b.id] && b.status !== 'Paid')} 
-                  onScanRequest={() => setIsScanning(true)} 
-                  onAmountUpdate={handleAmountUpdate} 
-                  urgencyMap={urgencyMap}
-                  scrollToBillId={scrollToBillId}
-                  onScrollComplete={() => setScrollToBillId(null)}
-                />
-              ) : (
-                <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--success)' }}>
-                  <span style={{ fontSize: '32px' }}>🎉</span><br/><br/>
-                  <strong style={{ fontSize: '18px' }}>No bills due at the moment!</strong><br/>
-                  <span style={{ color: 'var(--text-muted)' }}>Everything within the next 7 days is paid or clear.</span>
+
+              {Object.keys(dashboardData.historyMonths || {}).length > 0 && (
+                <div>
+                  <h3 style={{ margin: '0 0 12px 4px', fontSize: '18px', color: 'var(--text-muted)' }}>Previous Bills</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {sortMonthsDescending(Object.keys(dashboardData.historyMonths)).map(month => {
+                      const isExpanded = expandedPreviousMonth === month;
+                      return (
+                        <div key={month} className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
+                          <div 
+                            onClick={() => setExpandedPreviousMonth(isExpanded ? null : month)}
+                            style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold', cursor: 'pointer' }}
+                          >
+                            {isExpanded ? '▼' : '▶'} {month}
+                          </div>
+                          {isExpanded && <BillList bills={dashboardData.historyMonths[month]} onAmountUpdate={handleAmountUpdate} isHistory={true} />}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
@@ -590,25 +614,6 @@ export default function Dashboard() {
               ) : (
                 <p>No incoming bills generated for next month yet.<br/>They will appear here automatically on the 15th.</p>
               )}
-            </div>
-          )}
-
-          {activeTab === 'previous' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {sortMonthsDescending(Object.keys(dashboardData.historyMonths)).map(month => {
-                const isExpanded = expandedPreviousMonth === month;
-                return (
-                  <div key={month} className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
-                    <div 
-                      onClick={() => setExpandedPreviousMonth(isExpanded ? null : month)}
-                      style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold', cursor: 'pointer' }}
-                    >
-                      {isExpanded ? '▼' : '▶'} {month}
-                    </div>
-                    {isExpanded && <BillList bills={dashboardData.historyMonths[month]} onAmountUpdate={handleAmountUpdate} isHistory={true} />}
-                  </div>
-                );
-              })}
             </div>
           )}
 

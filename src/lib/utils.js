@@ -10,10 +10,15 @@ export function getNextMonthStr() {
 }
 
 export function sortMonthsDescending(monthsArray) {
+  const monthOrder = { 'January': 0, 'February': 1, 'March': 2, 'April': 3, 'May': 4, 'June': 5, 'July': 6, 'August': 7, 'September': 8, 'October': 9, 'November': 10, 'December': 11 };
   return monthsArray.sort((a, b) => {
-    let da = a.match(/\d{4}/) ? a : a + " " + new Date().getFullYear();
-    let db = b.match(/\d{4}/) ? b : b + " " + new Date().getFullYear();
-    return new Date(db) - new Date(da);
+    let [mA, yA] = a.split(' ');
+    let [mB, yB] = b.split(' ');
+    yA = parseInt(yA) || new Date().getFullYear();
+    yB = parseInt(yB) || new Date().getFullYear();
+    
+    if (yA !== yB) return yB - yA;
+    return monthOrder[mB] - monthOrder[mA];
   });
 }
 
