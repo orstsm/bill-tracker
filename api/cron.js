@@ -39,15 +39,16 @@ export default async function handler(req, res) {
   }
 
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
   const telegramChatId = process.env.TELEGRAM_CHAT_ID;
 
-  if (!supabaseUrl || !supabaseAnonKey || !telegramBotToken || !telegramChatId) {
+  if (!supabaseUrl || !supabaseServiceKey || !telegramBotToken || !telegramChatId) {
     return res.status(500).json({ error: 'Missing environment variables.' });
   }
 
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  // Use the Service Role Key to bypass Row Level Security
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
     // 1. Fetch all unpaid bills
