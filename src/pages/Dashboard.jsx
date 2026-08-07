@@ -6,7 +6,7 @@ import BillList from '../components/BillList';
 import AddBillerModal from '../components/AddBillerModal';
 import RemoveBillerModal from '../components/RemoveBillerModal';
 import WithdrawModal from '../components/WithdrawModal';
-import OCRScanner from '../components/OCRScanner';
+
 import { getCurrentMonthStr, getNextMonthStr, sortMonthsDescending, parseDueDateLogic, withTimeout } from '../lib/utils';
 // We'll import the CashLog component shortly
 import CashLog from '../components/CashLog'; 
