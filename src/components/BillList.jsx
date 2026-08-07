@@ -133,13 +133,6 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, onMarkP
                     {!isPaid ? (
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button onClick={(e) => { e.stopPropagation(); onMarkPaid && onMarkPaid(bill.id); }} style={{ background: 'var(--success)', color: '#fff', border: 'none', padding: '6px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>Paid</button>
-                        <button
-                          onClick={() => onScanRequest && onScanRequest(bill)}
-                          title="Scan Receipt OCR"
-                          style={{ background: 'rgba(56, 189, 248, 0.15)', color: 'var(--accent)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '6px 10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                        >
-                          <ScanLine size={14} />
-                        </button>
                       </div>
                     ) : (
                       <span style={{ color: 'var(--text-muted)' }}>—</span>
@@ -237,20 +230,11 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, onMarkP
                       {isPaid && bill.paid_date ? new Date(bill.paid_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                     </span>
                   </div>
-                  {!isPaid && (
                     <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
                       <button onClick={(e) => { e.stopPropagation(); onMarkPaid && onMarkPaid(bill.id); }} style={{ flex: 1, background: 'var(--success)', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}>
                         Mark as Paid
                       </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onScanRequest && onScanRequest(bill); }}
-                        title="Scan Receipt OCR"
-                        style={{ background: 'rgba(56, 189, 248, 0.15)', color: 'var(--accent)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '10px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                      >
-                        <ScanLine size={16} />
-                      </button>
                     </div>
-                  )}
                   {isSaving && <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold', textAlign: 'center' }}>Saving...</span>}
                 </div>
               )}
