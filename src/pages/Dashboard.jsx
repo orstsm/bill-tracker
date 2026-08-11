@@ -731,9 +731,9 @@ export default function Dashboard() {
                 <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold' }}>
                   ▼ Upcoming Bills
                 </div>
-                {dashboardData.currentBills.length > 0 ? (
+                {dashboardData.currentBills.filter(b => urgencyMap[b.id] && b.status !== 'Paid').length > 0 ? (
                   <BillList 
-                    bills={dashboardData.currentBills} 
+                    bills={dashboardData.currentBills.filter(b => urgencyMap[b.id] && b.status !== 'Paid')} 
                     onScanRequest={() => setIsScanning(true)} 
                     onAmountUpdate={handleAmountUpdate} 
                     onMarkPaid={handleMarkAsPaid}
@@ -744,7 +744,7 @@ export default function Dashboard() {
                 ) : (
                   <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--success)' }}>
                     <span style={{ fontSize: '32px' }}>🎉</span><br/><br/>
-                    <strong style={{ fontSize: '18px' }}>No active bills!</strong>
+                    <strong style={{ fontSize: '18px' }}>No upcoming bills!</strong>
                   </div>
                 )}
               </div>
