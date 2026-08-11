@@ -750,8 +750,11 @@ export default function Dashboard() {
               </div>
 
               <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
-                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold' }}>
-                  ▼ Subscriptions
+                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>▼ Subscriptions</span>
+                  <button onClick={() => setIsAddSubOpen(true)} style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Plus size={14} /> Add
+                  </button>
                 </div>
                 <SubscriptionList 
                   subscriptions={dashboardData.subscriptions} 
