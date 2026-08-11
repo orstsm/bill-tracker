@@ -10,6 +10,8 @@ import WithdrawModal from '../components/WithdrawModal';
 import { getCurrentMonthStr, getNextMonthStr, sortMonthsDescending, parseDueDateLogic, withTimeout } from '../lib/utils';
 // We'll import the CashLog component shortly
 import CashLog from '../components/CashLog'; 
+import SubscriptionList from '../components/SubscriptionList';
+import AddSubModal from '../components/AddSubModal';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -21,6 +23,7 @@ export default function Dashboard() {
   const [isRemoveBillerOpen, setIsRemoveBillerOpen] = useState(false);
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [isAddSubOpen, setIsAddSubOpen] = useState(false);
 
   // Expandable states (shared/mutually exclusive)
   const [summaryExpanded, setSummaryExpanded] = useState(false);
@@ -43,6 +46,7 @@ export default function Dashboard() {
     upcomingMonth: null,
     currentBills: [],
     upcomingBills: [],
+    subscriptions: [],
     historyMonths: {},
     recentWithdrawals: {},
     summary: {
@@ -66,6 +70,7 @@ export default function Dashboard() {
     setIsRemoveBillerOpen(false);
     setIsWithdrawOpen(false);
     setIsScanning(false);
+    setIsAddSubOpen(false);
     setShowCloseMonthModal(false);
   };
 
@@ -124,33 +129,37 @@ export default function Dashboard() {
 
       if (navigator.onLine) {
         try {
-          const [sRes, bRes, wRes] = await withTimeout(Promise.all([
+          const [sRes, bRes, wRes, subRes] = await withTimeout(Promise.all([
             supabase.from('settings').select('*').eq('user_id', user.id).single(),
             supabase.from('bills').select('*').eq('user_id', user.id).order('id', { ascending: false }),
-            supabase.from('withdrawals').select('*').eq('user_id', user.id)
+            supabase.from('withdrawals').select('*').eq('user_id', user.id),
+            supabase.from('subscriptions').select('*').eq('user_id', user.id).order('renewal_date', { ascending: true })
           ]), 5000);
 
           if (sRes.error && sRes.error.code !== 'PGRST116') throw sRes.error; // PGRST116 is "no rows found", which is fine for settings
           if (bRes.error) throw bRes.error;
           if (wRes.error) throw wRes.error;
+          if (subRes.error) throw subRes.error;
           
           sData = sRes.data;
           bData = bRes.data;
           wData = wRes.data;
           
           fetchSuccess = true;
-          localStorage.setItem('offline_dashboard_data', JSON.stringify({ sData, bData, wData }));
+          localStorage.setItem('offline_dashboard_data', JSON.stringify({ sData, bData, wData, subData: subRes.data }));
         } catch (e) {
           console.warn("Live fetch failed or timed out, falling back to cache", e);
         }
       }
 
+      let subData = [];
       if (!fetchSuccess) {
         // Read from cache
         const cache = JSON.parse(localStorage.getItem('offline_dashboard_data') || '{}');
         sData = cache.sData || null;
         bData = cache.bData || [];
         wData = cache.wData || [];
+        subData = cache.subData || [];
       }
 
       const stgs = { income: sData?.monthly_income || 0, savings: sData?.savings_account_balance || 0 };
@@ -226,6 +235,7 @@ export default function Dashboard() {
         upcomingMonth: todayDay >= 15 ? nextMonth : null,
         currentBills,
         upcomingBills,
+        subscriptions: subData,
         historyMonths: rawHistory,
         recentWithdrawals: rawWithdrawals,
         summary: { billsThisMonth: billsThisMonthSum, paidThisMonth: paidThisMonthSum, totalWithdrawn, countPaid, countTotal }
@@ -332,6 +342,44 @@ export default function Dashboard() {
       }
     } catch (e) {
       console.error("Failed to mark as paid", e);
+    }
+  };
+
+  const handleIgnoreRenew = async (sub) => {
+    try {
+      if (!navigator.onLine) {
+        alert("You must be online to update subscriptions.");
+        return;
+      }
+      const current = new Date(sub.renewal_date);
+      let nextDate = new Date(current);
+      if (sub.cycle === 'Monthly') {
+        nextDate.setMonth(nextDate.getMonth() + 1);
+      } else {
+        nextDate.setFullYear(nextDate.getFullYear() + 1);
+      }
+      
+      const { error } = await supabase.from('subscriptions').update({ renewal_date: nextDate.toISOString() }).eq('id', sub.id);
+      if (error) throw error;
+      fetchDashboardData(true);
+    } catch (e) {
+      console.error("Failed to renew subscription", e);
+      alert("Failed to update subscription");
+    }
+  };
+
+  const handleCancelSub = async (sub) => {
+    try {
+      if (!navigator.onLine) {
+        alert("You must be online to cancel subscriptions.");
+        return;
+      }
+      const { error } = await supabase.from('subscriptions').update({ status: 'Cancelled' }).eq('id', sub.id);
+      if (error) throw error;
+      fetchDashboardData(true);
+    } catch (e) {
+      console.error("Failed to cancel subscription", e);
+      alert("Failed to cancel subscription");
     }
   };
 
@@ -637,6 +685,9 @@ export default function Dashboard() {
           <TabButton active={activeTab === 'cashLog'} onClick={() => switchTab('cashLog')}>
             📊 Cash Log
           </TabButton>
+          <TabButton active={activeTab === 'subscriptions'} onClick={() => switchTab('subscriptions')}>
+            🔄 Subscriptions
+          </TabButton>
         </div>
         
         <div style={{ display: 'flex', gap: '12px' }}>
@@ -678,11 +729,11 @@ export default function Dashboard() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
                 <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold' }}>
-                  ▼ Due Bills (Within 7 Days)
+                  ▼ Upcoming Bills
                 </div>
-                {dashboardData.currentBills.filter(b => urgencyMap[b.id] && b.status !== 'Paid').length > 0 ? (
+                {dashboardData.currentBills.length > 0 ? (
                   <BillList 
-                    bills={dashboardData.currentBills.filter(b => urgencyMap[b.id] && b.status !== 'Paid')} 
+                    bills={dashboardData.currentBills} 
                     onScanRequest={() => setIsScanning(true)} 
                     onAmountUpdate={handleAmountUpdate} 
                     onMarkPaid={handleMarkAsPaid}
@@ -693,10 +744,20 @@ export default function Dashboard() {
                 ) : (
                   <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--success)' }}>
                     <span style={{ fontSize: '32px' }}>🎉</span><br/><br/>
-                    <strong style={{ fontSize: '18px' }}>No bills due at the moment!</strong><br/>
-                    <span style={{ color: 'var(--text-muted)' }}>Everything within the next 7 days is paid or clear.</span>
+                    <strong style={{ fontSize: '18px' }}>No active bills!</strong>
                   </div>
                 )}
+              </div>
+
+              <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
+                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold' }}>
+                  ▼ Subscriptions
+                </div>
+                <SubscriptionList 
+                  subscriptions={dashboardData.subscriptions} 
+                  onIgnoreRenew={handleIgnoreRenew} 
+                  onCancelSub={handleCancelSub} 
+                />
               </div>
 
               {Object.keys(dashboardData.historyMonths || {}).length > 0 && (
@@ -722,7 +783,6 @@ export default function Dashboard() {
               )}
             </div>
           )}
-
           {activeTab === 'incoming' && (
             <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
               {dashboardData.upcomingMonth ? (
@@ -763,9 +823,10 @@ export default function Dashboard() {
         </div>
       )}
 
-      {isAddBillerOpen && <AddBillerModal onClose={() => setIsAddBillerOpen(false)} onBillerAdded={fetchDashboardData} />}
-      {isRemoveBillerOpen && <RemoveBillerModal onClose={() => setIsRemoveBillerOpen(false)} onBillerRemoved={fetchDashboardData} />}
-      {isWithdrawOpen && <WithdrawModal onClose={() => setIsWithdrawOpen(false)} onWithdrawalAdded={fetchDashboardData} />}
+      {isAddBillerOpen && <AddBillerModal onClose={() => setIsAddBillerOpen(false)} onBillerAdded={() => fetchDashboardData(true)} />}
+      {isRemoveBillerOpen && <RemoveBillerModal onClose={() => setIsRemoveBillerOpen(false)} onBillerRemoved={() => fetchDashboardData(true)} />}
+      {isWithdrawOpen && <WithdrawModal onClose={() => setIsWithdrawOpen(false)} onWithdraw={() => fetchDashboardData(true)} />}
+      {isAddSubOpen && <AddSubModal onClose={() => setIsAddSubOpen(false)} onSubAdded={() => fetchDashboardData(true)} />}
       
       {isScanning && (
         <OCRScanner 
@@ -831,7 +892,7 @@ export default function Dashboard() {
         </button>
         <button onClick={handleActionItemsClick} style={{ background: 'none', border: 'none', color: activeTab === 'due' ? 'var(--warning)' : (actionItemsDue > 0 ? 'var(--warning)' : 'var(--text-muted)'), display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer', position: 'relative' }}>
           <AlertCircle size={24} />
-          <span style={{ fontSize: '10px', fontWeight: 'bold' }}>Due Bills</span>
+          <span style={{ fontSize: '10px', fontWeight: 'bold' }}>Bills/Subs</span>
           {actionItemsDue > 0 && <span style={{ position: 'absolute', top: '-4px', right: '4px', background: 'var(--danger)', color: '#fff', fontSize: '10px', fontWeight: 'bold', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{actionItemsDue}</span>}
         </button>
         <button onClick={() => switchTab('cashLog')} style={{ background: 'none', border: 'none', color: activeTab === 'cashLog' ? 'var(--accent)' : 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>

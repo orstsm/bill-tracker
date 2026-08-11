@@ -51,16 +51,22 @@ export default async function handler(req, res) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    // 1. Fetch all unpaid bills
-    const { data: bills, error } = await supabase
+    // 1. Fetch all unpaid bills and active subscriptions
+    const { data: bills, error: billsError } = await supabase
       .from('bills')
       .select('*')
       .neq('status', 'Paid');
 
-    if (error) throw error;
+    const { data: subscriptions, error: subsError } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('status', 'Active');
 
-    if (!bills || bills.length === 0) {
-      return res.status(200).json({ message: 'No unpaid bills found.' });
+    if (billsError) throw billsError;
+    if (subsError) throw subsError;
+
+    if ((!bills || bills.length === 0) && (!subscriptions || subscriptions.length === 0)) {
+      return res.status(200).json({ message: 'No action items found.' });
     }
 
     const currentMonth = getCurrentMonthStr();
@@ -85,30 +91,58 @@ export default async function handler(req, res) {
       }
     }
 
-    if (dueBills.length === 0) {
-      return res.status(200).json({ message: 'No bills due within 7 days.' });
+    }
+
+    const dueSubs = [];
+    for (const sub of (subscriptions || [])) {
+      const renewalDate = new Date(sub.renewal_date);
+      renewalDate.setHours(0, 0, 0, 0);
+      
+      const diffMs = renewalDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      
+      if (diffDays <= 5) {
+        dueSubs.push({ ...sub, diffDays });
+      }
+    }
+
+    if (dueBills.length === 0 && dueSubs.length === 0) {
+      return res.status(200).json({ message: 'No bills or subscriptions due soon.' });
     }
 
     // Sort by most urgent
     dueBills.sort((a, b) => a.diffDays - b.diffDays);
+    dueSubs.sort((a, b) => a.diffDays - b.diffDays);
 
     // 3. Format Telegram Message
-    let message = `⚠️ *Action Required: ${dueBills.length} Bill${dueBills.length > 1 ? 's' : ''} Due Soon!*\n\n`;
+    let message = '';
     
-    dueBills.forEach(b => {
-      const amt = Number(b.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
-      let status = '';
-      if (b.diffDays < 0) {
-        status = `🚨 *OVERDUE by ${Math.abs(b.diffDays)} days*`;
-      } else if (b.diffDays === 0) {
-        status = `⏰ *DUE TODAY*`;
-      } else {
-        status = `Due in ${b.diffDays} days`;
-      }
-      message += `• *${b.biller}*: ₱${amt}\n  ↳ ${status}\n\n`;
-    });
+    if (dueBills.length > 0) {
+      message += `⚠️ *Action Required: ${dueBills.length} Bill${dueBills.length > 1 ? 's' : ''} Due Soon!*\n\n`;
+      dueBills.forEach(b => {
+        const amt = Number(b.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+        let status = '';
+        if (b.diffDays < 0) {
+          status = `🚨 *OVERDUE by ${Math.abs(b.diffDays)} days*`;
+        } else if (b.diffDays === 0) {
+          status = `⏰ *DUE TODAY*`;
+        } else {
+          status = `Due in ${b.diffDays} days`;
+        }
+        message += `• *${b.biller}*: ₱${amt}\n  ↳ ${status}\n\n`;
+      });
+    }
 
-    message += `_Please mark them as Paid in the app once settled._`;
+    if (dueSubs.length > 0) {
+      if (message !== '') message += `---\n\n`;
+      message += `🔄 *Heads up: ${dueSubs.length} Subscription${dueSubs.length > 1 ? 's' : ''} Renewing Soon!*\n\n`;
+      dueSubs.forEach(sub => {
+        const amt = Number(sub.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+        message += `• *${sub.name}*: ₱${amt}\n  ↳ Renews in ${sub.diffDays} days (${sub.cycle})\n  ↳ _Ignore this if keeping it, or cancel now to avoid charges._\n\n`;
+      });
+    }
+
+    message += `_Please manage these inside the Bill Tracker app._`;
 
     // 4. Send to Telegram API
     const tgUrl = `https://api.telegram.org/bot${telegramBotToken}/sendMessage`;
@@ -130,7 +164,7 @@ export default async function handler(req, res) {
       throw new Error(`Telegram API Error: ${tgErr}`);
     }
 
-    return res.status(200).json({ message: `Successfully sent Telegram alert for ${dueBills.length} bills.` });
+    return res.status(200).json({ message: `Successfully sent Telegram alert for ${dueBills.length} bills and ${dueSubs.length} subscriptions.` });
 
   } catch (error) {
     console.error("Cron Error:", error);
