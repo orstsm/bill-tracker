@@ -124,7 +124,7 @@ export default function Dashboard() {
   const fetchDashboardData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      let sData, bData, wData;
+      let sData, bData, wData, subData = [];
       
       let fetchSuccess = false;
 
@@ -154,7 +154,6 @@ export default function Dashboard() {
         }
       }
 
-      let subData = [];
       if (!fetchSuccess) {
         // Read from cache
         const cache = JSON.parse(localStorage.getItem('offline_dashboard_data') || '{}');
