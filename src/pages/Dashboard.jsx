@@ -28,6 +28,7 @@ export default function Dashboard() {
   // Expandable states (shared/mutually exclusive)
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [expandedPreviousMonth, setExpandedPreviousMonth] = useState(null);
+  const [isSubsExpanded, setIsSubsExpanded] = useState(false);
   const [showCloseMonthModal, setShowCloseMonthModal] = useState(false);
 
   // Inline editing for settings
@@ -144,6 +145,7 @@ export default function Dashboard() {
           sData = sRes.data;
           bData = bRes.data;
           wData = wRes.data;
+          subData = subRes.data;
           
           fetchSuccess = true;
           localStorage.setItem('offline_dashboard_data', JSON.stringify({ sData, bData, wData, subData: subRes.data }));
@@ -731,36 +733,54 @@ export default function Dashboard() {
                 <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold' }}>
                   ▼ Upcoming Bills
                 </div>
-                {dashboardData.currentBills.filter(b => urgencyMap[b.id] && b.status !== 'Paid').length > 0 ? (
-                  <BillList 
-                    bills={dashboardData.currentBills.filter(b => urgencyMap[b.id] && b.status !== 'Paid')} 
-                    onScanRequest={() => setIsScanning(true)} 
-                    onAmountUpdate={handleAmountUpdate} 
-                    onMarkPaid={handleMarkAsPaid}
-                    urgencyMap={urgencyMap}
-                    scrollToBillId={scrollToBillId}
-                    onScrollComplete={() => setScrollToBillId(null)}
-                  />
+                {dashboardData.currentBills.filter(b => urgencyMap[b.id] && b.status !== 'Paid').length > 0 || dashboardData.subscriptions.filter(s => s.status === 'Active' && new Date(s.renewal_date).getTime() - new Date().getTime() <= 7 * 24 * 60 * 60 * 1000).length > 0 ? (
+                  <>
+                    {dashboardData.currentBills.filter(b => urgencyMap[b.id] && b.status !== 'Paid').length > 0 && (
+                      <BillList 
+                        bills={dashboardData.currentBills.filter(b => urgencyMap[b.id] && b.status !== 'Paid')} 
+                        onScanRequest={() => setIsScanning(true)} 
+                        onAmountUpdate={handleAmountUpdate} 
+                        onMarkPaid={handleMarkAsPaid}
+                        urgencyMap={urgencyMap}
+                        scrollToBillId={scrollToBillId}
+                        onScrollComplete={() => setScrollToBillId(null)}
+                      />
+                    )}
+                    {dashboardData.subscriptions.filter(s => s.status === 'Active' && new Date(s.renewal_date).getTime() - new Date().getTime() <= 7 * 24 * 60 * 60 * 1000).length > 0 && (
+                      <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px' }}>
+                        <SubscriptionList 
+                          subscriptions={dashboardData.subscriptions.filter(s => s.status === 'Active' && new Date(s.renewal_date).getTime() - new Date().getTime() <= 7 * 24 * 60 * 60 * 1000)} 
+                          onIgnoreRenew={handleIgnoreRenew} 
+                          onCancelSub={handleCancelSub} 
+                        />
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--success)' }}>
                     <span style={{ fontSize: '32px' }}>🎉</span><br/><br/>
-                    <strong style={{ fontSize: '18px' }}>No upcoming bills!</strong>
+                    <strong style={{ fontSize: '18px' }}>No upcoming bills or subscriptions!</strong>
                   </div>
                 )}
               </div>
 
               <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
-                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>▼ Subscriptions</span>
-                  <button onClick={() => setIsAddSubOpen(true)} style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <div 
+                  onClick={() => setIsSubsExpanded(!isSubsExpanded)}
+                  style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                >
+                  <span>{isSubsExpanded ? '▼' : '▶'} Subscriptions</span>
+                  <button onClick={(e) => { e.stopPropagation(); setIsAddSubOpen(true); }} style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <Plus size={14} /> Add
                   </button>
                 </div>
-                <SubscriptionList 
-                  subscriptions={dashboardData.subscriptions} 
-                  onIgnoreRenew={handleIgnoreRenew} 
-                  onCancelSub={handleCancelSub} 
-                />
+                {isSubsExpanded && (
+                  <SubscriptionList 
+                    subscriptions={dashboardData.subscriptions} 
+                    onIgnoreRenew={handleIgnoreRenew} 
+                    onCancelSub={handleCancelSub} 
+                  />
+                )}
               </div>
 
               {Object.keys(dashboardData.historyMonths || {}).length > 0 && (

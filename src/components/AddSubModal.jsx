@@ -59,22 +59,22 @@ export default function AddSubModal({ onClose, onSubAdded }) {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>Subscription Name</label>
-            <input required type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Gemini, Netflix" className="form-input" />
+            <input required type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Gemini, Netflix" style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none' }} />
           </div>
           
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>Amount</label>
-            <input required type="text" value={amount} onChange={e => setAmount(e.target.value)} placeholder="e.g. 1000.00" className="form-input" />
+            <input required type="text" value={amount} onChange={e => setAmount(e.target.value)} placeholder="e.g. 1000.00" style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none' }} />
           </div>
 
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>Next Renewal Date</label>
-            <input required type="date" value={renewalDate} onChange={e => setRenewalDate(e.target.value)} className="form-input" />
+            <input required type="date" value={renewalDate} onChange={e => setRenewalDate(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none' }} />
           </div>
 
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>Billing Cycle</label>
-            <select value={cycle} onChange={e => setCycle(e.target.value)} className="form-input">
+            <select value={cycle} onChange={e => setCycle(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none' }}>
               <option value="Monthly">Monthly</option>
               <option value="Yearly">Yearly</option>
             </select>
