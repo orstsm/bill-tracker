@@ -25,6 +25,7 @@ export default function Dashboard() {
 
   // Expandable states (shared/mutually exclusive)
   const [summaryExpanded, setSummaryExpanded] = useState(false);
+  const [currentMonthExpanded, setCurrentMonthExpanded] = useState(false);
   const [expandedPreviousMonth, setExpandedPreviousMonth] = useState(null);
   const [isSubsExpanded, setIsSubsExpanded] = useState(false);
   const [showCloseMonthModal, setShowCloseMonthModal] = useState(false);
@@ -515,7 +516,7 @@ export default function Dashboard() {
           style={{ fontSize: '12px', color: actionItemsDue > 0 ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontWeight: 'bold' }} 
           onClick={handleActionItemsClick}
         >
-          {actionItemsDue > 0 ? `You have ${actionItemsDue} action item(s) due!` : 'No action items due! ✓'}
+          {actionItemsDue > 0 ? `${actionItemsDue} bill${actionItemsDue > 1 ? 's' : ''} need${actionItemsDue > 1 ? '' : 's'} attention!` : 'No action items due! ✓'}
         </div>
       </div>
 
@@ -702,18 +703,31 @@ export default function Dashboard() {
         <div key={activeTab} className="animate-tab-switch">
           {activeTab === 'active' && (
             <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
-              <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                ▼ {dashboardData.currentMonth} (Current)
+              <div 
+                onClick={() => setCurrentMonthExpanded(!currentMonthExpanded)}
+                style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontWeight: '600', fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    {dashboardData.currentMonth} - {unpaidActiveCount} Unpaid Bill{unpaidActiveCount !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                {currentMonthExpanded ? <ChevronUp size={16} color="var(--text-muted)" /> : <ChevronDown size={16} color="var(--text-muted)" />}
               </div>
-              <BillList 
-                bills={dashboardData.currentBills} 
-                onScanRequest={() => setIsScanning(true)} 
-                onAmountUpdate={handleAmountUpdate} 
-                onMarkPaid={handleMarkAsPaid}
-                urgencyMap={urgencyMap}
-                scrollToBillId={scrollToBillId}
-                onScrollComplete={() => setScrollToBillId(null)}
-              />
+              
+              {currentMonthExpanded && (
+                <div style={{ borderTop: '0.5px solid var(--border-color)' }}>
+                  <BillList 
+                    bills={dashboardData.currentBills} 
+                    onScanRequest={() => setIsScanning(true)} 
+                    onAmountUpdate={handleAmountUpdate} 
+                    onMarkPaid={handleMarkAsPaid}
+                    urgencyMap={urgencyMap}
+                    scrollToBillId={scrollToBillId}
+                    onScrollComplete={() => setScrollToBillId(null)}
+                  />
+                </div>
+              )}
             </div>
           )}
 
