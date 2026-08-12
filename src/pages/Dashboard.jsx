@@ -7,7 +7,7 @@ import AddBillerModal from '../components/AddBillerModal';
 import RemoveBillerModal from '../components/RemoveBillerModal';
 import WithdrawModal from '../components/WithdrawModal';
 
-import { getCurrentMonthStr, getNextMonthStr, sortMonthsDescending, parseDueDateLogic, withTimeout } from '../lib/utils';
+import { getCurrentMonthStr, getNextMonthStr, sortMonthsDescending, parseDueDateLogic, withTimeout, getMondaysUntilNextFifth } from '../lib/utils';
 // We'll import the CashLog component shortly
 import CashLog from '../components/CashLog'; 
 import SubscriptionList from '../components/SubscriptionList';
@@ -660,8 +660,29 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+
+          {/* Projected Available Cash */}
+          <div className="glass-card animate-fade-up" style={{ animationDelay: '0.2s', padding: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                Projected Available Cash
+              </span>
+              <span style={{ fontSize: '20px', fontWeight: '900', color: 'var(--accent)' }}>
+                {(() => {
+                  const remainingMondays = getMondaysUntilNextFifth();
+                  const projectedWithdrawals = remainingMondays * 5000;
+                  const projectedCash = netPosition - projectedWithdrawals;
+                  return projectedCash.toLocaleString('en-PH', { minimumFractionDigits: 2 });
+                })()}
+              </span>
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              Based on {getMondaysUntilNextFifth()} remaining Monday(s) × ₱5,000 withdrawal before month-end.
+            </div>
+          </div>
         </div>
       )}
+
 
       {/* CONTROLS & TABS */}
       <div className="desktop-tabs" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
