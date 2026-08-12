@@ -524,7 +524,7 @@ export default function Dashboard() {
       {activeTab === 'active' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
           {/* Total Available Cash */}
-          <div className="glass-card animate-fade-up" style={{ padding: '20px' }}>
+          <div className="glass-card animate-fade-up" style={{ padding: '20px', minHeight: '130px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div 
               onClick={() => setSummaryExpanded(!summaryExpanded)} 
               style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px' }}
@@ -609,7 +609,7 @@ export default function Dashboard() {
           </div>
 
           {/* Total Outflows / Month End */}
-          <div className="glass-card animate-fade-up" style={{ animationDelay: '0.1s', padding: '20px' }}>
+          <div className="glass-card animate-fade-up" style={{ animationDelay: '0.1s', padding: '20px', minHeight: '130px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div 
               onClick={() => setSummaryExpanded(!summaryExpanded)} 
               style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px' }}
@@ -662,7 +662,7 @@ export default function Dashboard() {
           </div>
 
           {/* Projected Available Cash */}
-          <div className="glass-card animate-fade-up" style={{ animationDelay: '0.2s', padding: '20px' }}>
+          <div className="glass-card animate-fade-up" style={{ animationDelay: '0.2s', padding: '20px', minHeight: '130px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
                 Projected Available Cash
