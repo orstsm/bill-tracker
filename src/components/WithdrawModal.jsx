@@ -66,43 +66,49 @@ export default function WithdrawModal({ onClose, onWithdrawalAdded }) {
   };
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-      <div className="glass-card animate-fade-up" style={{ width: '100%', maxWidth: '400px', padding: '24px', position: 'relative' }}>
-        <button onClick={onClose} style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-          <X size={20} />
-        </button>
-        
-        <h2 style={{ marginTop: 0, marginBottom: '20px', fontSize: '20px' }}>Log Cash Withdrawal</h2>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+      <div className="animate-fade-up" style={{ width: '100%', maxWidth: '500px', background: 'var(--card-bg)', borderTopLeftRadius: '16px', borderTopRightRadius: '16px', padding: '24px', paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>Log Cash Withdrawal</h2>
+          <button 
+            onClick={onClose}
+            style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: '16px', fontWeight: '500' }}
+          >
+            Cancel
+          </button>
+        </div>
         
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 'bold', color: 'var(--text-muted)' }}>Amount</label>
+            <label className="native-label">Amount</label>
             <input 
               type="number" 
               required 
+              className="native-input"
               value={amount} 
               onChange={e => setAmount(e.target.value)}
-              style={{ width: '100%', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', padding: '12px', borderRadius: '8px', color: '#fff', fontSize: '16px' }}
               placeholder="e.g. 5000"
             />
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 'bold', color: 'var(--text-muted)' }}>Reason (Channel)</label>
+            <label className="native-label">Reason (Channel)</label>
             <input 
               type="text" 
               required 
+              className="native-input"
               value={reason} 
               onChange={e => setReason(e.target.value)}
-              style={{ width: '100%', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', padding: '12px', borderRadius: '8px', color: '#fff', fontSize: '16px' }}
               placeholder="e.g. Allowance, Budget"
             />
           </div>
           
-          <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-            <button type="submit" disabled={loading} style={{ flex: 1, background: 'var(--accent)', color: '#0f172a', fontWeight: 'bold', padding: '12px', borderRadius: '10px', border: 'none', opacity: loading ? 0.7 : 1, cursor: 'pointer' }}>
-              {loading ? 'Saving...' : 'Log Withdrawal'}
-            </button>
-          </div>
+          <button 
+            type="submit" 
+            disabled={loading}
+            style={{ marginTop: '8px', background: 'var(--accent)', color: '#fff', border: 'none', padding: '16px', borderRadius: '12px', fontSize: '16px', fontWeight: '600', width: '100%', opacity: loading ? 0.7 : 1 }}
+          >
+            {loading ? 'Logging...' : 'Log Withdrawal'}
+          </button>
         </form>
       </div>
     </div>

@@ -45,13 +45,17 @@ export default function RemoveBillerModal({ onClose, onBillerRemoved }) {
   };
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-      <div className="glass-card animate-fade-up" style={{ width: '100%', maxWidth: '400px', padding: '24px', position: 'relative' }}>
-        <button onClick={onClose} style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-          <X size={20} />
-        </button>
-        
-        <h2 style={{ marginTop: 0, marginBottom: '20px', fontSize: '20px' }}>Remove Biller</h2>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+      <div className="animate-fade-up" style={{ width: '100%', maxWidth: '500px', background: 'var(--card-bg)', borderTopLeftRadius: '16px', borderTopRightRadius: '16px', padding: '24px', paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>Remove Biller</h2>
+          <button 
+            onClick={onClose}
+            style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: '16px', fontWeight: '500' }}
+          >
+            Cancel
+          </button>
+        </div>
         
         {loading ? (
           <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>Loading...</div>
@@ -60,12 +64,12 @@ export default function RemoveBillerModal({ onClose, onBillerRemoved }) {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
             {billers.map(b => (
-              <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
-                <span style={{ fontWeight: 'bold' }}>{b.biller}</span>
+              <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'rgba(118, 118, 128, 0.24)', borderRadius: '12px' }}>
+                <span style={{ fontWeight: '600', fontSize: '15px' }}>{b.biller}</span>
                 <button 
                   onClick={() => handleRemove(b.id)}
                   disabled={removing}
-                  style={{ background: 'var(--danger)', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', opacity: removing ? 0.7 : 1 }}
+                  style={{ background: 'var(--danger)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', opacity: removing ? 0.7 : 1 }}
                 >
                   Remove
                 </button>

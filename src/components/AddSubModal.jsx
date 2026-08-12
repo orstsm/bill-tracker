@@ -48,39 +48,43 @@ export default function AddSubModal({ onClose, onSubAdded }) {
   };
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px' }}>
-      <div className="glass-card animate-fade-up" style={{ width: '100%', maxWidth: '420px', position: 'relative' }}>
-        <button onClick={onClose} style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-          <X size={20} />
-        </button>
-        
-        <h2 style={{ marginTop: 0, marginBottom: '24px', fontSize: '20px' }}>Add Subscription</h2>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+      <div className="animate-fade-up" style={{ width: '100%', maxWidth: '500px', background: 'var(--card-bg)', borderTopLeftRadius: '16px', borderTopRightRadius: '16px', padding: '24px', paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>Add Subscription</h2>
+          <button 
+            onClick={onClose}
+            style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: '16px', fontWeight: '500' }}
+          >
+            Cancel
+          </button>
+        </div>
         
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>Subscription Name</label>
-            <input required type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Gemini, Netflix" style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none' }} />
+            <label className="native-label">Subscription Name</label>
+            <input required type="text" className="native-input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Gemini, Netflix" />
           </div>
           
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>Amount</label>
-            <input required type="text" value={amount} onChange={e => setAmount(e.target.value)} placeholder="e.g. 1000.00" style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none' }} />
+            <label className="native-label">Amount</label>
+            <input required type="text" className="native-input" value={amount} onChange={e => setAmount(e.target.value)} placeholder="e.g. 1000.00" />
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>Next Renewal Date</label>
-            <input required type="date" value={renewalDate} onChange={e => setRenewalDate(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none' }} />
+            <label className="native-label">Next Renewal Date</label>
+            <input required type="date" className="native-input" value={renewalDate} onChange={e => setRenewalDate(e.target.value)} />
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>Billing Cycle</label>
-            <select value={cycle} onChange={e => setCycle(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none' }}>
+            <label className="native-label">Billing Cycle</label>
+            <select className="native-input" value={cycle} onChange={e => setCycle(e.target.value)}>
               <option value="Monthly">Monthly</option>
               <option value="Yearly">Yearly</option>
             </select>
           </div>
           
-          <button type="submit" disabled={loading} style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '14px', borderRadius: '12px', fontSize: '15px', fontWeight: 'bold', cursor: loading ? 'not-allowed' : 'pointer', marginTop: '8px' }}>
+          <button type="submit" disabled={loading} style={{ background: 'var(--accent)', color: '#fff', border: 'none', padding: '16px', borderRadius: '12px', fontSize: '16px', fontWeight: '600', width: '100%', opacity: loading ? 0.7 : 1, marginTop: '8px' }}>
             {loading ? 'Adding...' : 'Add Subscription'}
           </button>
         </form>

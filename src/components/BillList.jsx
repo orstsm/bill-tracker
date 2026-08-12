@@ -146,7 +146,7 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, onMarkP
       </div>
 
       {/* ==================== MOBILE CARDS ==================== */}
-      <div className="mobile-only">
+      <div className="mobile-only glass-card" style={{ padding: 0 }}>
         {bills.map((bill) => {
           const isPaid = bill.status === 'Paid';
           const isFinal = bill.is_final;
@@ -167,19 +167,17 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, onMarkP
               id={`bill-row-${bill.id}`}
               className={cardClass}
               style={{
-                background: 'var(--glass-bg)',
-                border: '1px solid var(--glass-border)',
-                borderRadius: '12px',
-                marginBottom: '12px',
-                padding: '16px',
+                background: 'transparent',
+                borderBottom: '0.5px solid var(--border-color)',
+                padding: '12px 16px',
                 transition: 'background 0.2s',
               }}
             >
               {/* Card Header — always visible */}
               <div onClick={() => toggleExpand(bill.id)} style={{ cursor: 'pointer' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{bill.biller}</span>
-                  <span style={{ fontWeight: 'bold', color: amountColor, fontSize: '16px' }}>₱{displayAmount}</span>
+                  <span style={{ fontWeight: '600', fontSize: '16px' }}>{bill.biller}</span>
+                  <span style={{ fontWeight: '500', color: amountColor, fontSize: '16px' }}>₱{displayAmount}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
                   <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
@@ -191,7 +189,7 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, onMarkP
 
               {/* Expanded Details */}
               {isExpanded && (
-                <div style={{ marginTop: '12px', borderTop: '1px solid var(--glass-border)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '0.5px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ fontWeight: 'bold', color: 'var(--text-muted)', fontSize: '12px' }}>Statement Date</span>
                     <span style={{ fontSize: '14px' }}>{bill.statement_date || '—'}</span>
@@ -209,10 +207,10 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, onMarkP
                       onBlur={(e) => handleAmountBlur(bill.id, e.target.value, bill.amount)}
                       onClick={(e) => e.stopPropagation()}
                       style={{
-                        background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)',
+                        background: 'rgba(118, 118, 128, 0.24)', border: 'none',
                         padding: '6px 10px', borderRadius: '6px', color: amountColor,
-                        fontWeight: 'bold', width: '100px', outline: 'none', textAlign: 'right',
-                        cursor: readOnly ? 'default' : 'text', opacity: readOnly && !isPaid ? 0.7 : 1
+                        fontWeight: '600', width: '100px', outline: 'none', textAlign: 'right',
+                        cursor: readOnly ? 'default' : 'text', opacity: readOnly && !isPaid ? 0.7 : 1, fontSize: '14px'
                       }}
                     />
                   </div>
@@ -245,22 +243,12 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, onMarkP
 
       {/* Confirmation Modal via Portal to escape backdrop-filter containing block */}
       {confirmModal.show && createPortal(
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <div className="glass-card animate-fade-up" style={{ width: '100%', maxWidth: '300px', padding: '24px', textAlign: 'center' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '16px' }}>Is this the final amount?</h3>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--glass-border)', borderRadius: '16px', width: '90%', maxWidth: '300px', padding: '24px', textAlign: 'center' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '18px', fontWeight: '600' }}>Confirm Amount</h3>
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-              <button
-                onClick={() => handleConfirmFinal(false)}
-                style={{ flex: 1, background: 'rgba(255,255,255,0.1)', color: 'var(--text-main)', border: '1px solid var(--glass-border)', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
-              >
-                No
-              </button>
-              <button
-                onClick={() => handleConfirmFinal(true)}
-                style={{ flex: 1, background: 'var(--success)', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
-              >
-                Yes
-              </button>
+              <button onClick={() => handleConfirmFinal(false)} style={{ flex: 1, background: 'rgba(118, 118, 128, 0.24)', color: '#fff', border: 'none', padding: '12px', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>Just Saving</button>
+              <button onClick={() => handleConfirmFinal(true)} style={{ flex: 1, background: 'var(--accent)', color: '#fff', border: 'none', padding: '12px', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>Mark Final</button>
             </div>
           </div>
         </div>,

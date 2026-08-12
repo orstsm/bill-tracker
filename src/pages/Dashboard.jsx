@@ -15,9 +15,7 @@ import AddSubModal from '../components/AddSubModal';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [theme, setTheme] = useState(
-    document.documentElement.getAttribute('data-theme') || 'dark'
-  );
+
   const [activeTab, setActiveTab] = useState('active'); // active, incoming, previous, cashLog
   const [isAddBillerOpen, setIsAddBillerOpen] = useState(false);
   const [isRemoveBillerOpen, setIsRemoveBillerOpen] = useState(false);
@@ -59,11 +57,6 @@ export default function Dashboard() {
     }
   });
 
-  const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
-  };
 
   const switchTab = (tab) => {
     setActiveTab(tab);
@@ -511,9 +504,7 @@ export default function Dashboard() {
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h1 style={{ fontSize: '26px', fontWeight: 'bold', margin: 0, lineHeight: 1 }}>Bill Tracker</h1>
           <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-            <button onClick={toggleTheme} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', padding: 0 }}>
-              {theme === 'dark' ? '🌙' : '☀️'}
-            </button>
+
             <button onClick={handleLogout} title="Log Out" style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid var(--glass-border)', color: 'var(--danger)', padding: '6px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <LogOut size={18} />
             </button>
@@ -954,8 +945,8 @@ function TabButton({ children, active, onClick, badge }) {
         display: 'flex',
         alignItems: 'center',
         gap: '8px',
-        background: active ? 'var(--accent)' : 'transparent',
-        color: active ? '#0f172a' : 'var(--text-muted)',
+        background: active ? 'rgba(10, 132, 255, 0.15)' : 'transparent',
+        color: active ? 'var(--accent)' : 'var(--text-muted)',
         border: 'none',
         padding: '8px 16px',
         borderRadius: '10px',
@@ -968,8 +959,8 @@ function TabButton({ children, active, onClick, badge }) {
       {children}
       {badge > 0 && (
         <span style={{ 
-          background: active ? '#0f172a' : 'var(--danger)', 
-          color: active ? 'var(--danger)' : '#fff', 
+          background: 'var(--danger)', 
+          color: '#fff', 
           padding: '2px 6px', 
           borderRadius: '12px', 
           fontSize: '11px', 
