@@ -709,7 +709,10 @@ export default function Dashboard() {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontWeight: '600', fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                    {dashboardData.currentMonth} - {unpaidActiveCount} Unpaid Bill{unpaidActiveCount !== 1 ? 's' : ''}
+                    {dashboardData.currentMonth} - 
+                    <span style={{ color: 'var(--danger)', fontWeight: '900', marginLeft: '4px' }}>
+                      {unpaidActiveCount} Unpaid Bill{unpaidActiveCount !== 1 ? 's' : ''}
+                    </span>
                   </span>
                 </div>
                 {currentMonthExpanded ? <ChevronUp size={16} color="var(--text-muted)" /> : <ChevronDown size={16} color="var(--text-muted)" />}
@@ -929,22 +932,18 @@ export default function Dashboard() {
       
       {/* Mobile Bottom Navigation */}
       <div className="mobile-bottom-nav">
-        <button onClick={() => switchTab('active')} style={{ background: 'none', border: 'none', color: activeTab === 'active' ? 'var(--accent)' : 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-          <Home size={24} />
-          <span style={{ fontSize: '10px', fontWeight: 'bold' }}>Home</span>
+        <button onClick={() => switchTab('active')} style={{ background: activeTab === 'active' ? 'rgba(255,255,255,0.15)' : 'none', border: 'none', color: activeTab === 'active' ? '#fff' : 'rgba(255,255,255,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', width: '48px', height: '44px', borderRadius: '22px', cursor: 'pointer', transition: 'all 0.2s' }}>
+          <Home size={24} strokeWidth={activeTab === 'active' ? 2.5 : 2} />
         </button>
-        <button onClick={handleActionItemsClick} style={{ background: 'none', border: 'none', color: activeTab === 'due' ? 'var(--warning)' : (actionItemsDue > 0 ? 'var(--warning)' : 'var(--text-muted)'), display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer', position: 'relative' }}>
-          <AlertCircle size={24} />
-          <span style={{ fontSize: '10px', fontWeight: 'bold' }}>Bills/Subs</span>
-          {actionItemsDue > 0 && <span style={{ position: 'absolute', top: '-4px', right: '4px', background: 'var(--danger)', color: '#fff', fontSize: '10px', fontWeight: 'bold', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{actionItemsDue}</span>}
+        <button onClick={handleActionItemsClick} style={{ background: activeTab === 'due' ? 'rgba(255,255,255,0.15)' : 'none', border: 'none', color: activeTab === 'due' ? '#fff' : (actionItemsDue > 0 ? 'var(--warning)' : 'rgba(255,255,255,0.7)'), display: 'flex', justifyContent: 'center', alignItems: 'center', width: '48px', height: '44px', borderRadius: '22px', cursor: 'pointer', position: 'relative', transition: 'all 0.2s' }}>
+          <AlertCircle size={24} strokeWidth={activeTab === 'due' ? 2.5 : 2} />
+          {actionItemsDue > 0 && <span style={{ position: 'absolute', top: '2px', right: '2px', background: 'var(--danger)', color: '#fff', fontSize: '10px', fontWeight: 'bold', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid rgba(44,44,46,1)' }}>{actionItemsDue}</span>}
         </button>
-        <button onClick={() => switchTab('cashLog')} style={{ background: 'none', border: 'none', color: activeTab === 'cashLog' ? 'var(--accent)' : 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-          <FileText size={24} />
-          <span style={{ fontSize: '10px', fontWeight: 'bold' }}>Cash Log</span>
+        <button onClick={() => switchTab('cashLog')} style={{ background: activeTab === 'cashLog' ? 'rgba(255,255,255,0.15)' : 'none', border: 'none', color: activeTab === 'cashLog' ? '#fff' : 'rgba(255,255,255,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', width: '48px', height: '44px', borderRadius: '22px', cursor: 'pointer', transition: 'all 0.2s' }}>
+          <FileText size={24} strokeWidth={activeTab === 'cashLog' ? 2.5 : 2} />
         </button>
-        <button onClick={() => setIsWithdrawOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--danger)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-          <MinusCircle size={24} />
-          <span style={{ fontSize: '10px', fontWeight: 'bold' }}>Withdraw</span>
+        <button onClick={() => setIsWithdrawOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--danger)', display: 'flex', justifyContent: 'center', alignItems: 'center', width: '48px', height: '44px', borderRadius: '22px', cursor: 'pointer', transition: 'all 0.2s' }}>
+          <MinusCircle size={24} strokeWidth={2.5} />
         </button>
       </div>
     </div>
