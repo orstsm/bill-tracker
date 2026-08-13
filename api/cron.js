@@ -91,8 +91,6 @@ export default async function handler(req, res) {
       }
     }
 
-    }
-
     const dueSubs = [];
     for (const sub of (subscriptions || [])) {
       const renewalDate = new Date(sub.renewal_date);
