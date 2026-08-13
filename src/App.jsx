@@ -13,7 +13,13 @@ function App() {
     );
   }
 
-  return user ? <Dashboard /> : <Login />;
+  return (
+    <>
+      <div className="app-bg"></div>
+      <div className="app-bg-overlay"></div>
+      {user ? <Dashboard /> : <Login />}
+    </>
+  );
 }
 
 export default App;

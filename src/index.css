@@ -1,19 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
 
 :root {
-  /* Native Apple Dark Mode Theme Engine */
-  --bg-gradient: #000000;
+  /* WoodNest Cabin Dark Mode Theme Engine */
+  --bg-gradient: #142229;
   --text-main: #FFFFFF;
-  --text-muted: #8E8E93;
-  --text-secondary: #EBEBF599; /* System gray for labels */
-  --card-bg: #1C1C1E;
-  --card-bg-hover: #2C2C2E;
-  --border-color: rgba(255, 255, 255, 0.15);
-  --accent: #0A84FF; /* System Blue */
-  --accent-hover: #007AFF;
-  --success: #34C759; /* System Green */
-  --danger: #FF453A; /* System Red */
-  --warning: #FF9F0A; /* System Orange */
+  --text-muted: #8EABB7;
+  --text-secondary: rgba(142, 171, 183, 0.6);
+  --card-bg: rgba(25, 42, 51, 0.4);
+  --card-bg-hover: rgba(25, 42, 51, 0.6);
+  --border-color: rgba(142, 171, 183, 0.15);
+  --accent: #FFAA33; /* Glowing Amber */
+  --accent-hover: #E66C24;
+  --success: #34C759;
+  --danger: #FF453A;
+  --warning: #FF9F0A;
 }
 
 * {
@@ -32,11 +32,15 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Apple Inset Grouped List Card */
+/* Apple Inset Grouped List Card -> Glassmorphic Card */
 .glass-card {
   background: var(--card-bg);
   border-radius: 12px;
   overflow: hidden;
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
 }
 
 /* Base Styles */
@@ -111,12 +115,12 @@ button {
     bottom: max(16px, env(safe-area-inset-bottom));
     left: 20px;
     right: 20px;
-    background: rgba(44, 44, 46, 0.85); /* Slightly lighter gray, translucent */
+    background: rgba(25, 42, 51, 0.7);
     backdrop-filter: blur(25px);
     -webkit-backdrop-filter: blur(25px);
     border-radius: 40px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-    border: 0.5px solid rgba(255, 255, 255, 0.1);
+    border: 0.5px solid var(--border-color);
     padding: 10px 16px;
     justify-content: space-around;
     align-items: center;
@@ -220,4 +224,52 @@ button {
   transform: translateX(-50%);
   border: 5px solid transparent;
   border-top-color: var(--card-bg-hover);
+}
+
+/* ------------------------------------- */
+/* PREMIUM ANIMATED BACKGROUND           */
+/* ------------------------------------- */
+.app-bg {
+  position: fixed;
+  top: -10%;
+  left: -10%;
+  width: 120%;
+  height: 120%;
+  background: url('/bg.png') no-repeat center center;
+  background-size: cover;
+  z-index: -2;
+  animation: kenBurns 40s infinite alternate ease-in-out;
+}
+
+.app-bg-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(to bottom, rgba(58, 90, 102, 0.3), rgba(20, 34, 41, 0.7));
+  z-index: -1;
+}
+
+@keyframes kenBurns {
+  0% { transform: scale(1) translate(0, 0); }
+  100% { transform: scale(1.1) translate(-2%, 2%); }
+}
+
+/* ------------------------------------- */
+/* PREMIUM TAB TRANSITIONS               */
+/* ------------------------------------- */
+.animate-tab-switch {
+  animation: slideFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
