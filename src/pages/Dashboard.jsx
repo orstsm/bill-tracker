@@ -663,21 +663,19 @@ export default function Dashboard() {
 
           {/* Projected Available Cash */}
           <div className="glass-card animate-fade-up" style={{ animationDelay: '0.2s', padding: '20px', minHeight: '130px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                Projected Available Cash
-              </span>
-              <span style={{ fontSize: '20px', fontWeight: '900', color: 'var(--accent)' }}>
-                {(() => {
-                  const remainingMondays = getMondaysUntilNextFifth();
-                  const projectedWithdrawals = remainingMondays * 5000;
-                  const projectedCash = netPosition - projectedWithdrawals;
-                  return projectedCash.toLocaleString('en-PH', { minimumFractionDigits: 2 });
-                })()}
-              </span>
+            <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>
+              Projected Available Cash
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '12px' }}>
               Based on {getMondaysUntilNextFifth()} remaining Monday(s) × ₱5,000 withdrawal before month-end.
+            </div>
+            <div style={{ fontSize: '24px', fontWeight: '900', color: 'var(--accent)', textAlign: 'right' }}>
+              {(() => {
+                const remainingMondays = getMondaysUntilNextFifth();
+                const projectedWithdrawals = remainingMondays * 5000;
+                const projectedCash = netPosition - projectedWithdrawals;
+                return projectedCash.toLocaleString('en-PH', { minimumFractionDigits: 2 });
+              })()}
             </div>
           </div>
         </div>
