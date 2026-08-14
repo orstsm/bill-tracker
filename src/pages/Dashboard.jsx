@@ -9,7 +9,7 @@ import WithdrawModal from '../components/WithdrawModal';
 
 import { getCurrentMonthStr, getNextMonthStr, sortMonthsDescending, parseDueDateLogic, withTimeout, getMondaysUntilNextFifth } from '../lib/utils';
 // We'll import the CashLog component shortly
-import CashLog from '../components/CashLog'; 
+import CashLog from '../components/CashLog';
 import SubscriptionList from '../components/SubscriptionList';
 import AddSubModal from '../components/AddSubModal';
 
@@ -80,8 +80,8 @@ export default function Dashboard() {
         if (queue.length > 0) {
           console.log('Syncing offline withdrawals...', queue);
           for (const item of queue) {
-             const payload = { amount: item.amount, reason: item.reason, month: item.month, user_id: item.user_id };
-             await supabase.from('withdrawals').insert(payload);
+            const payload = { amount: item.amount, reason: item.reason, month: item.month, user_id: item.user_id };
+            await supabase.from('withdrawals').insert(payload);
           }
           localStorage.removeItem('offline_withdrawals');
         }
@@ -111,7 +111,7 @@ export default function Dashboard() {
     if (user) {
       fetchDashboardData();
     }
-    
+
     return () => window.removeEventListener('online', handleOnline);
   }, [user]);
 
@@ -119,7 +119,7 @@ export default function Dashboard() {
     if (!silent) setLoading(true);
     try {
       let sData, bData, wData, subData = [];
-      
+
       let fetchSuccess = false;
 
       if (navigator.onLine) {
@@ -135,12 +135,12 @@ export default function Dashboard() {
           if (bRes.error) throw bRes.error;
           if (wRes.error) throw wRes.error;
           if (subRes.error) throw subRes.error;
-          
+
           sData = sRes.data;
           bData = bRes.data;
           wData = wRes.data;
           subData = subRes.data;
-          
+
           fetchSuccess = true;
           localStorage.setItem('offline_dashboard_data', JSON.stringify({ sData, bData, wData, subData: subRes.data }));
         } catch (e) {
@@ -163,13 +163,13 @@ export default function Dashboard() {
       const currentMonth = getCurrentMonthStr();
       const nextMonth = getNextMonthStr();
       const todayDay = new Date().getDate();
-      
+
       let billsThisMonthSum = 0;
       let paidThisMonthSum = 0;
       let countPaid = 0;
       let countTotal = 0;
       let totalWithdrawn = 0;
-      
+
       const currentBills = [];
       const upcomingBills = [];
       const rawHistory = {};
@@ -179,7 +179,7 @@ export default function Dashboard() {
       (wData || []).forEach(w => {
         const amt = Number(w.amount);
         if (amt === 0) return; // Skip placeholders from Cash Log
-        
+
         if (!rawWithdrawals[w.month]) rawWithdrawals[w.month] = { total: 0, logs: [] };
         rawWithdrawals[w.month].logs.push(w);
         rawWithdrawals[w.month].total += amt;
@@ -287,7 +287,7 @@ export default function Dashboard() {
         payload.is_final = true;
         payload.final_date = new Date().toISOString();
       }
-      
+
       let success = false;
       if (navigator.onLine) {
         try {
@@ -299,7 +299,7 @@ export default function Dashboard() {
           console.warn("Live update failed or timed out, falling back to offline queue");
         }
       }
-      
+
       if (!success) {
         const queue = JSON.parse(localStorage.getItem('offline_bill_updates') || '[]');
         queue.push({ billId, payload });
@@ -315,7 +315,7 @@ export default function Dashboard() {
   const handleMarkAsPaid = async (billId) => {
     try {
       const payload = { status: 'Paid', paid_date: new Date().toISOString() };
-      
+
       let success = false;
       if (navigator.onLine) {
         try {
@@ -327,7 +327,7 @@ export default function Dashboard() {
           console.warn("Live mark paid failed or timed out, falling back to offline queue");
         }
       }
-      
+
       if (!success) {
         const queue = JSON.parse(localStorage.getItem('offline_bill_updates') || '[]');
         queue.push({ billId, payload });
@@ -353,7 +353,7 @@ export default function Dashboard() {
       } else {
         nextDate.setFullYear(nextDate.getFullYear() + 1);
       }
-      
+
       const { error } = await supabase.from('subscriptions').update({ renewal_date: nextDate.toISOString() }).eq('id', sub.id);
       if (error) throw error;
       fetchDashboardData(true);
@@ -490,10 +490,10 @@ export default function Dashboard() {
   const startingFunds = settings.income + settings.savings;
   const totalOutflows = dashboardData.summary.billsThisMonth + dashboardData.summary.totalWithdrawn;
   const netPosition = startingFunds - totalOutflows;
-  
+
   const remainingThisMonth = dashboardData.summary.billsThisMonth - dashboardData.summary.paidThisMonth;
-  const progressPercent = dashboardData.summary.countTotal > 0 
-    ? (dashboardData.summary.countPaid / dashboardData.summary.countTotal) * 100 
+  const progressPercent = dashboardData.summary.countTotal > 0
+    ? (dashboardData.summary.countPaid / dashboardData.summary.countTotal) * 100
     : 0;
 
   const unpaidActiveCount = dashboardData.summary.countTotal - dashboardData.summary.countPaid;
@@ -511,13 +511,15 @@ export default function Dashboard() {
             </button>
           </div>
         </header>
-        <div 
+        <div
+          key={actionItemsDue > 0 ? 'due' : 'none'}
           className={actionItemsDue > 0 ? 'action-items-pulse' : ''}
-          style={{ fontSize: '12px', color: actionItemsDue > 0 ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontWeight: 'bold' }} 
+          style={{ fontSize: '12px', color: actionItemsDue > 0 ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontWeight: 'bold', transform: 'translateZ(0)', WebkitTransform: 'translateZ(0)' }}
           onClick={handleActionItemsClick}
         >
           {actionItemsDue > 0 ? `${actionItemsDue} bill${actionItemsDue > 1 ? 's' : ''} need${actionItemsDue > 1 ? '' : 's'} attention!` : 'No action items due! ✓'}
         </div>
+
       </div>
 
       {/* SUMMARY WIDGETS */}
@@ -525,78 +527,78 @@ export default function Dashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
           {/* Total Available Cash */}
           <div className="glass-card animate-fade-up" style={{ padding: '20px', minHeight: '130px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <div 
-              onClick={() => setSummaryExpanded(!summaryExpanded)} 
+            <div
+              onClick={() => setSummaryExpanded(!summaryExpanded)}
               style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px' }}
             >
               <span>Financial Overview</span>
               {summaryExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </div>
-            
+
             {summaryExpanded ? (
               <div>
-                 <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Starting Funds</div>
-                 <div style={{ paddingLeft: '12px', display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid var(--glass-border)', paddingBottom: '12px', marginBottom: '12px' }}>
-                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                     <span>Savings Account Balance</span>
-                     {editingField === 'savings' ? (
-                       <input
-                         type="number"
-                         value={editingValue}
-                         onChange={e => setEditingValue(e.target.value)}
-                         onBlur={saveSettingsField}
-                         onKeyDown={e => { if (e.key === 'Enter') saveSettingsField(); }}
-                         autoFocus
-                         style={{ width: '120px', textAlign: 'right', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--accent)', padding: '4px 8px', borderRadius: '4px', color: '#fff', fontWeight: 'bold', outline: 'none' }}
-                       />
-                     ) : (
-                       <span onClick={() => startEditingField('savings')} style={{ fontWeight: 'bold', cursor: 'pointer', borderBottom: '1px dashed var(--text-muted)' }} title="Click to edit">
-                         {settings.savings.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                       </span>
-                     )}
-                   </div>
-                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                     <span>Monthly Income</span>
-                     {editingField === 'income' ? (
-                       <input
-                         type="number"
-                         value={editingValue}
-                         onChange={e => setEditingValue(e.target.value)}
-                         onBlur={saveSettingsField}
-                         onKeyDown={e => { if (e.key === 'Enter') saveSettingsField(); }}
-                         autoFocus
-                         style={{ width: '120px', textAlign: 'right', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--accent)', padding: '4px 8px', borderRadius: '4px', color: '#fff', fontWeight: 'bold', outline: 'none' }}
-                       />
-                     ) : (
-                       <span onClick={() => startEditingField('income')} style={{ fontWeight: 'bold', cursor: 'pointer', borderBottom: '1px dashed var(--text-muted)' }} title="Click to edit">
-                         {settings.income.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                       </span>
-                     )}
-                   </div>
-                 </div>
+                <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Starting Funds</div>
+                <div style={{ paddingLeft: '12px', display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid var(--glass-border)', paddingBottom: '12px', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Savings Account Balance</span>
+                    {editingField === 'savings' ? (
+                      <input
+                        type="number"
+                        value={editingValue}
+                        onChange={e => setEditingValue(e.target.value)}
+                        onBlur={saveSettingsField}
+                        onKeyDown={e => { if (e.key === 'Enter') saveSettingsField(); }}
+                        autoFocus
+                        style={{ width: '120px', textAlign: 'right', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--accent)', padding: '4px 8px', borderRadius: '4px', color: '#fff', fontWeight: 'bold', outline: 'none' }}
+                      />
+                    ) : (
+                      <span onClick={() => startEditingField('savings')} style={{ fontWeight: 'bold', cursor: 'pointer', borderBottom: '1px dashed var(--text-muted)' }} title="Click to edit">
+                        {settings.savings.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Monthly Income</span>
+                    {editingField === 'income' ? (
+                      <input
+                        type="number"
+                        value={editingValue}
+                        onChange={e => setEditingValue(e.target.value)}
+                        onBlur={saveSettingsField}
+                        onKeyDown={e => { if (e.key === 'Enter') saveSettingsField(); }}
+                        autoFocus
+                        style={{ width: '120px', textAlign: 'right', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--accent)', padding: '4px 8px', borderRadius: '4px', color: '#fff', fontWeight: 'bold', outline: 'none' }}
+                      />
+                    ) : (
+                      <span onClick={() => startEditingField('income')} style={{ fontWeight: 'bold', cursor: 'pointer', borderBottom: '1px dashed var(--text-muted)' }} title="Click to edit">
+                        {settings.income.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                      </span>
+                    )}
+                  </div>
+                </div>
 
-                 <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Minus Outflows</div>
-                 <div style={{ paddingLeft: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                   <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--danger)' }}>
-                     <span>Bills This Month</span>
-                     <span style={{ fontWeight: 'bold' }}>-{dashboardData.summary.billsThisMonth.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
-                   </div>
-                   <div 
-                     onClick={() => switchTab('cashLog')}
-                     style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--danger)', cursor: 'pointer', textDecoration: 'underline' }}
-                     title="Click to view Cash Log"
-                   >
-                     <span>Cash Withdrawn</span>
-                     <span style={{ fontWeight: 'bold' }}>-{dashboardData.summary.totalWithdrawn.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
-                   </div>
-                 </div>
+                <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Minus Outflows</div>
+                <div style={{ paddingLeft: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--danger)' }}>
+                    <span>Bills This Month</span>
+                    <span style={{ fontWeight: 'bold' }}>-{dashboardData.summary.billsThisMonth.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div
+                    onClick={() => switchTab('cashLog')}
+                    style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--danger)', cursor: 'pointer', textDecoration: 'underline' }}
+                    title="Click to view Cash Log"
+                  >
+                    <span>Cash Withdrawn</span>
+                    <span style={{ fontWeight: 'bold' }}>-{dashboardData.summary.totalWithdrawn.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
 
-                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '16px', borderTop: '2px dashed var(--glass-border)' }}>
-                   <span style={{ fontSize: '16px', fontWeight: 'bold' }}>Total Available Cash</span>
-                   <span style={{ fontSize: '24px', fontWeight: '900', color: 'var(--success)', textShadow: '0 0 12px rgba(16,185,129,0.4)' }}>
-                     {netPosition.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                   </span>
-                 </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '16px', borderTop: '2px dashed var(--glass-border)' }}>
+                  <span style={{ fontSize: '16px', fontWeight: 'bold' }}>Total Available Cash</span>
+                  <span style={{ fontSize: '24px', fontWeight: '900', color: 'var(--success)', textShadow: '0 0 12px rgba(16,185,129,0.4)' }}>
+                    {netPosition.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
               </div>
             ) : (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -610,46 +612,46 @@ export default function Dashboard() {
 
           {/* Total Outflows / Month End */}
           <div className="glass-card animate-fade-up" style={{ animationDelay: '0.1s', padding: '20px', minHeight: '130px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <div 
-              onClick={() => setSummaryExpanded(!summaryExpanded)} 
+            <div
+              onClick={() => setSummaryExpanded(!summaryExpanded)}
               style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px' }}
             >
               <span>Month-End Summary</span>
               {summaryExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </div>
-            
+
             {summaryExpanded ? (
               <div>
-                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid var(--glass-border)', paddingBottom: '8px' }}>
-                   <span>Bills This Month</span>
-                   <span style={{ fontWeight: 'bold' }}>{dashboardData.summary.billsThisMonth.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
-                 </div>
-                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid var(--glass-border)', paddingBottom: '8px' }}>
-                   <span>Paid</span>
-                   <span style={{ fontWeight: 'bold', color: 'var(--success)' }}>{dashboardData.summary.paidThisMonth.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
-                 </div>
-                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-                   <span>Remaining</span>
-                   <span style={{ fontWeight: 'bold', color: 'var(--warning)' }}>{remainingThisMonth.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
-                 </div>
-                 
-                 <div style={{ width: '100%', height: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{ width: `${progressPercent}%`, height: '100%', background: 'var(--success)', transition: 'width 0.5s ease' }}></div>
-                 </div>
-                 <div style={{ textAlign: 'right', marginTop: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
-                   {dashboardData.summary.countPaid} / {dashboardData.summary.countTotal} Bills Paid
-                 </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid var(--glass-border)', paddingBottom: '8px' }}>
+                  <span>Bills This Month</span>
+                  <span style={{ fontWeight: 'bold' }}>{dashboardData.summary.billsThisMonth.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid var(--glass-border)', paddingBottom: '8px' }}>
+                  <span>Paid</span>
+                  <span style={{ fontWeight: 'bold', color: 'var(--success)' }}>{dashboardData.summary.paidThisMonth.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                  <span>Remaining</span>
+                  <span style={{ fontWeight: 'bold', color: 'var(--warning)' }}>{remainingThisMonth.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                </div>
 
-                 <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '2px dashed var(--glass-border)' }}>
-                   <button 
-                     onClick={() => setShowCloseMonthModal(true)}
-                     style={{ width: '100%', background: 'transparent', border: '1px solid var(--success)', color: 'var(--success)', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}
-                     onMouseOver={e => { e.target.style.background = 'var(--success)'; e.target.style.color = '#0f172a'; }}
-                     onMouseOut={e => { e.target.style.background = 'transparent'; e.target.style.color = 'var(--success)'; }}
-                   >
-                     Close Month & Rollover
-                   </button>
-                 </div>
+                <div style={{ width: '100%', height: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div style={{ width: `${progressPercent}%`, height: '100%', background: 'var(--success)', transition: 'width 0.5s ease' }}></div>
+                </div>
+                <div style={{ textAlign: 'right', marginTop: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                  {dashboardData.summary.countPaid} / {dashboardData.summary.countTotal} Bills Paid
+                </div>
+
+                <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '2px dashed var(--glass-border)' }}>
+                  <button
+                    onClick={() => setShowCloseMonthModal(true)}
+                    style={{ width: '100%', background: 'transparent', border: '1px solid var(--success)', color: 'var(--success)', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}
+                    onMouseOver={e => { e.target.style.background = 'var(--success)'; e.target.style.color = '#0f172a'; }}
+                    onMouseOut={e => { e.target.style.background = 'transparent'; e.target.style.color = 'var(--success)'; }}
+                  >
+                    Close Month & Rollover
+                  </button>
+                </div>
               </div>
             ) : (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -701,7 +703,7 @@ export default function Dashboard() {
             🔄 Subscriptions
           </TabButton>
         </div>
-        
+
         <div style={{ display: 'flex', gap: '12px' }}>
           <button className="mobile-hidden" onClick={() => setIsWithdrawOpen(true)} style={{ background: 'transparent', border: '1px solid var(--danger)', color: 'var(--danger)', padding: '8px 16px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
             − Withdraw
@@ -722,13 +724,13 @@ export default function Dashboard() {
         <div key={activeTab} className="animate-tab-switch">
           {activeTab === 'active' && (
             <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
-              <div 
+              <div
                 onClick={() => setCurrentMonthExpanded(!currentMonthExpanded)}
                 style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px' }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontWeight: '600', fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                    {dashboardData.currentMonth} - 
+                    {dashboardData.currentMonth} -
                     <span style={{ color: 'var(--danger)', fontWeight: '900', marginLeft: '4px' }}>
                       {unpaidActiveCount} Unpaid Bill{unpaidActiveCount !== 1 ? 's' : ''}
                     </span>
@@ -736,13 +738,13 @@ export default function Dashboard() {
                 </div>
                 {currentMonthExpanded ? <ChevronUp size={16} color="var(--text-muted)" /> : <ChevronDown size={16} color="var(--text-muted)" />}
               </div>
-              
+
               {currentMonthExpanded && (
                 <div style={{ borderTop: '0.5px solid var(--border-color)' }}>
-                  <BillList 
-                    bills={dashboardData.currentBills} 
-                    onScanRequest={() => setIsScanning(true)} 
-                    onAmountUpdate={handleAmountUpdate} 
+                  <BillList
+                    bills={dashboardData.currentBills}
+                    onScanRequest={() => setIsScanning(true)}
+                    onAmountUpdate={handleAmountUpdate}
                     onMarkPaid={handleMarkAsPaid}
                     urgencyMap={urgencyMap}
                     scrollToBillId={scrollToBillId}
@@ -762,10 +764,10 @@ export default function Dashboard() {
                 {dashboardData.currentBills.filter(b => urgencyMap[b.id] && b.status !== 'Paid').length > 0 || dashboardData.subscriptions.filter(s => s.status === 'Active' && new Date(s.renewal_date).getTime() - new Date().getTime() <= 7 * 24 * 60 * 60 * 1000).length > 0 ? (
                   <>
                     {dashboardData.currentBills.filter(b => urgencyMap[b.id] && b.status !== 'Paid').length > 0 && (
-                      <BillList 
-                        bills={dashboardData.currentBills.filter(b => urgencyMap[b.id] && b.status !== 'Paid')} 
-                        onScanRequest={() => setIsScanning(true)} 
-                        onAmountUpdate={handleAmountUpdate} 
+                      <BillList
+                        bills={dashboardData.currentBills.filter(b => urgencyMap[b.id] && b.status !== 'Paid')}
+                        onScanRequest={() => setIsScanning(true)}
+                        onAmountUpdate={handleAmountUpdate}
                         onMarkPaid={handleMarkAsPaid}
                         urgencyMap={urgencyMap}
                         scrollToBillId={scrollToBillId}
@@ -774,24 +776,24 @@ export default function Dashboard() {
                     )}
                     {dashboardData.subscriptions.filter(s => s.status === 'Active' && new Date(s.renewal_date).getTime() - new Date().getTime() <= 7 * 24 * 60 * 60 * 1000).length > 0 && (
                       <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px' }}>
-                        <SubscriptionList 
-                          subscriptions={dashboardData.subscriptions.filter(s => s.status === 'Active' && new Date(s.renewal_date).getTime() - new Date().getTime() <= 7 * 24 * 60 * 60 * 1000)} 
-                          onIgnoreRenew={handleIgnoreRenew} 
-                          onCancelSub={handleCancelSub} 
+                        <SubscriptionList
+                          subscriptions={dashboardData.subscriptions.filter(s => s.status === 'Active' && new Date(s.renewal_date).getTime() - new Date().getTime() <= 7 * 24 * 60 * 60 * 1000)}
+                          onIgnoreRenew={handleIgnoreRenew}
+                          onCancelSub={handleCancelSub}
                         />
                       </div>
                     )}
                   </>
                 ) : (
                   <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--success)' }}>
-                    <span style={{ fontSize: '32px' }}>🎉</span><br/><br/>
+                    <span style={{ fontSize: '32px' }}>🎉</span><br /><br />
                     <strong style={{ fontSize: '18px' }}>No upcoming bills or subscriptions!</strong>
                   </div>
                 )}
               </div>
 
               <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
-                <div 
+                <div
                   onClick={() => setIsSubsExpanded(!isSubsExpanded)}
                   style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
                 >
@@ -801,10 +803,10 @@ export default function Dashboard() {
                   </button>
                 </div>
                 {isSubsExpanded && (
-                  <SubscriptionList 
-                    subscriptions={dashboardData.subscriptions} 
-                    onIgnoreRenew={handleIgnoreRenew} 
-                    onCancelSub={handleCancelSub} 
+                  <SubscriptionList
+                    subscriptions={dashboardData.subscriptions}
+                    onIgnoreRenew={handleIgnoreRenew}
+                    onCancelSub={handleCancelSub}
                   />
                 )}
               </div>
@@ -817,7 +819,7 @@ export default function Dashboard() {
                       const isExpanded = expandedPreviousMonth === month;
                       return (
                         <div key={month} className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
-                          <div 
+                          <div
                             onClick={() => setExpandedPreviousMonth(isExpanded ? null : month)}
                             style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold', cursor: 'pointer' }}
                           >
@@ -842,7 +844,7 @@ export default function Dashboard() {
                   <BillList bills={dashboardData.upcomingBills} onAmountUpdate={handleAmountUpdate} onMarkPaid={handleMarkAsPaid} />
                 </div>
               ) : (
-                <p>No incoming bills generated for next month yet.<br/>They will appear here automatically on the 15th.</p>
+                <p>No incoming bills generated for next month yet.<br />They will appear here automatically on the 15th.</p>
               )}
             </div>
           )}
@@ -853,7 +855,7 @@ export default function Dashboard() {
                 const isExpanded = expandedPreviousMonth === month;
                 return (
                   <div key={month} className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
-                    <div 
+                    <div
                       onClick={() => setExpandedPreviousMonth(isExpanded ? null : month)}
                       style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold', cursor: 'pointer' }}
                     >
@@ -878,10 +880,10 @@ export default function Dashboard() {
                   <Plus size={14} /> Add
                 </button>
               </div>
-              <SubscriptionList 
-                subscriptions={dashboardData.subscriptions} 
-                onIgnoreRenew={handleIgnoreRenew} 
-                onCancelSub={handleCancelSub} 
+              <SubscriptionList
+                subscriptions={dashboardData.subscriptions}
+                onIgnoreRenew={handleIgnoreRenew}
+                onCancelSub={handleCancelSub}
               />
             </div>
           )}
@@ -892,14 +894,14 @@ export default function Dashboard() {
       {isRemoveBillerOpen && <RemoveBillerModal onClose={() => setIsRemoveBillerOpen(false)} onBillerRemoved={() => fetchDashboardData(true)} />}
       {isWithdrawOpen && <WithdrawModal onClose={() => setIsWithdrawOpen(false)} onWithdraw={() => fetchDashboardData(true)} />}
       {isAddSubOpen && <AddSubModal onClose={() => setIsAddSubOpen(false)} onSubAdded={() => fetchDashboardData(true)} />}
-      
+
       {isScanning && (
-        <OCRScanner 
-          onClose={() => setIsScanning(false)} 
+        <OCRScanner
+          onClose={() => setIsScanning(false)}
           onScanResult={(amount) => {
             setIsScanning(false);
             if (amount > 0) alert(`Scanned Amount: ₱${amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`);
-          }} 
+          }}
         />
       )}
 
@@ -948,7 +950,7 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-      
+
       {/* Mobile Bottom Navigation */}
       <div className="mobile-bottom-nav">
         <button onClick={() => switchTab('active')} style={{ background: activeTab === 'active' ? 'rgba(255,255,255,0.15)' : 'none', border: 'none', color: activeTab === 'active' ? '#fff' : 'rgba(255,255,255,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', width: '48px', height: '44px', borderRadius: '22px', cursor: 'pointer', transition: 'all 0.2s' }}>
@@ -971,7 +973,7 @@ export default function Dashboard() {
 
 function TabButton({ children, active, onClick, badge }) {
   return (
-    <button 
+    <button
       onClick={onClick}
       style={{
         display: 'flex',
@@ -990,13 +992,13 @@ function TabButton({ children, active, onClick, badge }) {
     >
       {children}
       {badge > 0 && (
-        <span style={{ 
-          background: 'var(--danger)', 
-          color: '#fff', 
-          padding: '2px 6px', 
-          borderRadius: '12px', 
-          fontSize: '11px', 
-          fontWeight: '900' 
+        <span style={{
+          background: 'var(--danger)',
+          color: '#fff',
+          padding: '2px 6px',
+          borderRadius: '12px',
+          fontSize: '11px',
+          fontWeight: '900'
         }}>
           {badge}
         </span>
