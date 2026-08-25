@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { LogOut, Plus, Wallet, FileText, CheckCircle2, History, Banknote, ChevronDown, ChevronUp, Home, AlertCircle, MinusCircle } from 'lucide-react';
@@ -12,6 +12,7 @@ import { getCurrentMonthStr, getNextMonthStr, sortMonthsDescending, parseDueDate
 import CashLog from '../components/CashLog';
 import SubscriptionList from '../components/SubscriptionList';
 import AddSubModal from '../components/AddSubModal';
+import useSwipeNav from '../hooks/useSwipeNav';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -70,30 +71,24 @@ export default function Dashboard() {
     setShowCloseMonthModal(false);
   }, []);
 
-  // Lightweight swipe detection using touch events
-  const touchStartX = useRef(0);
-  const touchStartY = useRef(0);
-  const activeTabRef = useRef(activeTab);
-  activeTabRef.current = activeTab;
+  // Swipe navigation: Home ⇄ Bills ⇄ Cash Log
+  const anyModalOpen = isAddBillerOpen || isRemoveBillerOpen || isWithdrawOpen || isScanning || isAddSubOpen || showCloseMonthModal;
 
-  const handleTouchStart = useCallback((e) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-  }, []);
+  const onSwipeLeft = useCallback(() => {
+    const idx = TAB_ORDER.indexOf(activeTab);
+    if (idx < TAB_ORDER.length - 1) switchTab(TAB_ORDER[idx + 1]);
+  }, [activeTab, switchTab]);
 
-  const handleTouchEnd = useCallback((e) => {
-    const dx = e.changedTouches[0].clientX - touchStartX.current;
-    const dy = e.changedTouches[0].clientY - touchStartY.current;
-    // Only trigger if horizontal swipe is dominant and exceeds threshold
-    if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-      const currentIdx = TAB_ORDER.indexOf(activeTabRef.current);
-      if (dx < 0 && currentIdx < TAB_ORDER.length - 1) {
-        switchTab(TAB_ORDER[currentIdx + 1]);
-      } else if (dx > 0 && currentIdx > 0) {
-        switchTab(TAB_ORDER[currentIdx - 1]);
-      }
-    }
-  }, [switchTab]);
+  const onSwipeRight = useCallback(() => {
+    const idx = TAB_ORDER.indexOf(activeTab);
+    if (idx > 0) switchTab(TAB_ORDER[idx - 1]);
+  }, [activeTab, switchTab]);
+
+  const swipeRef = useSwipeNav({
+    onSwipeLeft,
+    onSwipeRight,
+    disabled: anyModalOpen,
+  });
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -525,7 +520,7 @@ export default function Dashboard() {
   const unpaidActiveCount = dashboardData.summary.countTotal - dashboardData.summary.countPaid;
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div ref={swipeRef} style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* HEADER */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -745,10 +740,7 @@ export default function Dashboard() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Loading dashboard...</div>
       ) : (
-        <div
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-        >
+        <div>
           <div style={{ display: activeTab === 'active' ? 'block' : 'none' }}>
             <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
               <div
