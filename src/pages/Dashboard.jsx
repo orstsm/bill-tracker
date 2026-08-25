@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { LogOut, Plus, Wallet, FileText, CheckCircle2, History, Banknote, ChevronDown, ChevronUp, Home, AlertCircle, MinusCircle } from 'lucide-react';
@@ -58,8 +59,13 @@ export default function Dashboard() {
     }
   });
 
+  const TAB_ORDER = ['active', 'incoming', 'previous', 'cashLog', 'subscriptions', 'due'];
+  const [direction, setDirection] = useState(0);
 
   const switchTab = (tab) => {
+    const currentIdx = TAB_ORDER.indexOf(activeTab);
+    const nextIdx = TAB_ORDER.indexOf(tab);
+    setDirection(nextIdx > currentIdx ? 1 : -1);
     setActiveTab(tab);
     setIsAddBillerOpen(false);
     setIsRemoveBillerOpen(false);
@@ -67,6 +73,22 @@ export default function Dashboard() {
     setIsScanning(false);
     setIsAddSubOpen(false);
     setShowCloseMonthModal(false);
+  };
+
+  const handleDragEnd = (event, info) => {
+    const swipeThreshold = 50;
+    const currentIdx = TAB_ORDER.indexOf(activeTab);
+    if (info.offset.x < -swipeThreshold && currentIdx < TAB_ORDER.length - 1) {
+      switchTab(TAB_ORDER[currentIdx + 1]);
+    } else if (info.offset.x > swipeThreshold && currentIdx > 0) {
+      switchTab(TAB_ORDER[currentIdx - 1]);
+    }
+  };
+
+  const slideVariants = {
+    enter: (direction) => ({ x: direction > 0 ? '100%' : '-100%', opacity: 0 }),
+    center: { zIndex: 1, x: 0, opacity: 1 },
+    exit: (direction) => ({ zIndex: 0, x: direction < 0 ? '100%' : '-100%', opacity: 0 })
   };
 
   const handleLogout = async () => {
@@ -721,7 +743,21 @@ export default function Dashboard() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Loading dashboard...</div>
       ) : (
-        <div key={activeTab} className="animate-tab-switch">
+        <AnimatePresence mode="wait" custom={direction} initial={false}>
+          <motion.div
+            key={activeTab}
+            custom={direction}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ x: { type: "spring", stiffness: 300, damping: 30 }, opacity: { duration: 0.2 } }}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={1}
+            onDragEnd={handleDragEnd}
+            style={{ width: '100%', touchAction: 'pan-y' }}
+          >
           {activeTab === 'active' && (
             <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
               <div
@@ -887,7 +923,8 @@ export default function Dashboard() {
               />
             </div>
           )}
-        </div>
+          </motion.div>
+        </AnimatePresence>
       )}
 
       {isAddBillerOpen && <AddBillerModal onClose={() => setIsAddBillerOpen(false)} onBillerAdded={() => fetchDashboardData(true)} />}
