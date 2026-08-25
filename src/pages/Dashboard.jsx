@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { LogOut, Plus, Wallet, FileText, CheckCircle2, History, Banknote, ChevronDown, ChevronUp, Home, AlertCircle, MinusCircle } from 'lucide-react';
@@ -60,12 +59,8 @@ export default function Dashboard() {
   });
 
   const TAB_ORDER = ['active', 'due', 'cashLog'];
-  const [direction, setDirection] = useState(0);
 
-  const switchTab = (tab) => {
-    const currentIdx = TAB_ORDER.indexOf(activeTab);
-    const nextIdx = TAB_ORDER.indexOf(tab);
-    setDirection(nextIdx > currentIdx ? 1 : -1);
+  const switchTab = useCallback((tab) => {
     setActiveTab(tab);
     setIsAddBillerOpen(false);
     setIsRemoveBillerOpen(false);
@@ -73,23 +68,32 @@ export default function Dashboard() {
     setIsScanning(false);
     setIsAddSubOpen(false);
     setShowCloseMonthModal(false);
-  };
+  }, []);
 
-  const handleDragEnd = (event, info) => {
-    const swipeThreshold = 80;
-    const currentIdx = TAB_ORDER.indexOf(activeTab);
-    if (info.offset.x < -swipeThreshold && currentIdx < TAB_ORDER.length - 1) {
-      switchTab(TAB_ORDER[currentIdx + 1]);
-    } else if (info.offset.x > swipeThreshold && currentIdx > 0) {
-      switchTab(TAB_ORDER[currentIdx - 1]);
+  // Lightweight swipe detection using touch events
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+
+  const handleTouchStart = useCallback((e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+
+  const handleTouchEnd = useCallback((e) => {
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    // Only trigger if horizontal swipe is dominant and exceeds threshold
+    if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      const currentIdx = TAB_ORDER.indexOf(activeTabRef.current);
+      if (dx < 0 && currentIdx < TAB_ORDER.length - 1) {
+        switchTab(TAB_ORDER[currentIdx + 1]);
+      } else if (dx > 0 && currentIdx > 0) {
+        switchTab(TAB_ORDER[currentIdx - 1]);
+      }
     }
-  };
-
-  const slideVariants = {
-    enter: (direction) => ({ x: direction > 0 ? '100%' : '-100%', opacity: 0 }),
-    center: { zIndex: 1, x: 0, opacity: 1 },
-    exit: (direction) => ({ zIndex: 0, x: direction < 0 ? '100%' : '-100%', opacity: 0 })
-  };
+  }, [switchTab]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -741,22 +745,11 @@ export default function Dashboard() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Loading dashboard...</div>
       ) : (
-        <AnimatePresence mode="wait" custom={direction} initial={false}>
-          <motion.div
-            key={activeTab}
-            custom={direction}
-            variants={slideVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ x: { type: "spring", stiffness: 300, damping: 30 }, opacity: { duration: 0.2 } }}
-            drag="x"
-            dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={0.15}
-            onDragEnd={handleDragEnd}
-            style={{ width: '100%', touchAction: 'pan-y' }}
-          >
-          {activeTab === 'active' && (
+        <div
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          <div style={{ display: activeTab === 'active' ? 'block' : 'none' }}>
             <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
               <div
                 onClick={() => setCurrentMonthExpanded(!currentMonthExpanded)}
@@ -787,9 +780,9 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-          )}
+          </div>
 
-          {activeTab === 'due' && (
+          <div style={{ display: activeTab === 'due' ? 'block' : 'none' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
                 <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold' }}>
@@ -867,8 +860,8 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-          )}
-          {activeTab === 'incoming' && (
+          </div>
+          <div style={{ display: activeTab === 'incoming' ? 'block' : 'none' }}>
             <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
               {dashboardData.upcomingMonth ? (
                 <div className="glass-card" style={{ padding: '0', overflow: 'hidden', fontStyle: 'normal', textAlign: 'left' }}>
@@ -881,9 +874,9 @@ export default function Dashboard() {
                 <p>No incoming bills generated for next month yet.<br />They will appear here automatically on the 15th.</p>
               )}
             </div>
-          )}
 
-          {activeTab === 'previous' && (
+          </div>
+          <div style={{ display: activeTab === 'previous' ? 'block' : 'none' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {sortMonthsDescending(Object.keys(dashboardData.historyMonths)).map(month => {
                 const isExpanded = expandedPreviousMonth === month;
@@ -900,13 +893,14 @@ export default function Dashboard() {
                 );
               })}
             </div>
-          )}
 
-          {activeTab === 'cashLog' && (
+          </div>
+
+          <div style={{ display: activeTab === 'cashLog' ? 'block' : 'none' }}>
             <CashLog withdrawals={dashboardData.recentWithdrawals} />
-          )}
+          </div>
 
-          {activeTab === 'subscriptions' && (
+          <div style={{ display: activeTab === 'subscriptions' ? 'block' : 'none' }}>
             <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
               <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>▼ Active Subscriptions</span>
@@ -920,9 +914,8 @@ export default function Dashboard() {
                 onCancelSub={handleCancelSub}
               />
             </div>
-          )}
-          </motion.div>
-        </AnimatePresence>
+          </div>
+        </div>
       )}
 
       {isAddBillerOpen && <AddBillerModal onClose={() => setIsAddBillerOpen(false)} onBillerAdded={() => fetchDashboardData(true)} />}
