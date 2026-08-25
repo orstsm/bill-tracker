@@ -59,7 +59,7 @@ export default function Dashboard() {
     }
   });
 
-  const TAB_ORDER = ['active', 'incoming', 'previous', 'cashLog', 'subscriptions', 'due'];
+  const TAB_ORDER = ['active', 'due', 'cashLog'];
   const [direction, setDirection] = useState(0);
 
   const switchTab = (tab) => {
@@ -76,7 +76,7 @@ export default function Dashboard() {
   };
 
   const handleDragEnd = (event, info) => {
-    const swipeThreshold = 50;
+    const swipeThreshold = 80;
     const currentIdx = TAB_ORDER.indexOf(activeTab);
     if (info.offset.x < -swipeThreshold && currentIdx < TAB_ORDER.length - 1) {
       switchTab(TAB_ORDER[currentIdx + 1]);
@@ -545,10 +545,9 @@ export default function Dashboard() {
       </div>
 
       {/* SUMMARY WIDGETS */}
-      {activeTab === 'active' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+      <div style={{ display: activeTab === 'active' ? 'grid' : 'none', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
           {/* Total Available Cash */}
-          <div className="glass-card animate-fade-up" style={{ padding: '20px', minHeight: '130px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <div className="glass-card" style={{ padding: '20px', minHeight: '130px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div
               onClick={() => setSummaryExpanded(!summaryExpanded)}
               style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px' }}
@@ -633,7 +632,7 @@ export default function Dashboard() {
           </div>
 
           {/* Total Outflows / Month End */}
-          <div className="glass-card animate-fade-up" style={{ animationDelay: '0.1s', padding: '20px', minHeight: '130px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <div className="glass-card" style={{ padding: '20px', minHeight: '130px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div
               onClick={() => setSummaryExpanded(!summaryExpanded)}
               style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px' }}
@@ -686,7 +685,7 @@ export default function Dashboard() {
           </div>
 
           {/* Projected Available Cash */}
-          <div className="glass-card animate-fade-up" style={{ animationDelay: '0.2s', padding: '20px', minHeight: '130px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <div className="glass-card" style={{ padding: '20px', minHeight: '130px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>
               Projected Available Cash
             </div>
@@ -702,8 +701,7 @@ export default function Dashboard() {
               })()}
             </div>
           </div>
-        </div>
-      )}
+      </div>
 
 
       {/* CONTROLS & TABS */}
@@ -754,7 +752,7 @@ export default function Dashboard() {
             transition={{ x: { type: "spring", stiffness: 300, damping: 30 }, opacity: { duration: 0.2 } }}
             drag="x"
             dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={1}
+            dragElastic={0.15}
             onDragEnd={handleDragEnd}
             style={{ width: '100%', touchAction: 'pan-y' }}
           >
