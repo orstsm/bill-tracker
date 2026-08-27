@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { getCurrentMonthStr, withTimeout } from '../lib/utils';
 
-export default function WithdrawModal({ onClose, onWithdrawalAdded }) {
+export default function WithdrawModal({ onClose, onWithdraw, isEarlyRollover }) {
   const { user } = useAuth();
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
@@ -36,6 +36,16 @@ export default function WithdrawModal({ onClose, onWithdrawalAdded }) {
         try {
           const { error } = await withTimeout(supabase.from('withdrawals').insert(payload), 4000);
           if (error) throw error;
+          
+          if (isEarlyRollover) {
+            // Because we already snapshotted the funds for the new month, 
+            // a withdrawal tagged for the old calendar month must be manually deducted from the snapshot.
+            const { data: sData } = await supabase.from('settings').select('savings_account_balance').eq('user_id', user.id).single();
+            if (sData) {
+              await supabase.from('settings').update({ savings_account_balance: sData.savings_account_balance - numAmount }).eq('user_id', user.id);
+            }
+          }
+          
           success = true;
         } catch (e) {
           console.warn("Live withdrawal log failed or timed out, falling back to offline queue");
@@ -55,7 +65,7 @@ export default function WithdrawModal({ onClose, onWithdrawalAdded }) {
         alert("Network unreachable. Withdrawal saved locally and will sync later.");
       }
 
-      if (onWithdrawalAdded) onWithdrawalAdded();
+      if (onWithdraw) onWithdraw();
       onClose();
     } catch (error) {
       console.error("Error adding withdrawal:", error);

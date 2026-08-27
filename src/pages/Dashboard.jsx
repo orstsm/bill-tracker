@@ -30,6 +30,7 @@ export default function Dashboard() {
   const [expandedPreviousMonth, setExpandedPreviousMonth] = useState(null);
   const [isSubsExpanded, setIsSubsExpanded] = useState(false);
   const [showCloseMonthModal, setShowCloseMonthModal] = useState(false);
+  const [pendingAutoRollover, setPendingAutoRollover] = useState(null);
 
   // Inline editing for settings
   const [editingField, setEditingField] = useState(null); // 'income' or 'savings'
@@ -43,7 +44,9 @@ export default function Dashboard() {
   const [firstDueBillId, setFirstDueBillId] = useState(null);
   const [scrollToBillId, setScrollToBillId] = useState(null);
   const [dashboardData, setDashboardData] = useState({
-    currentMonth: '',
+    appActiveMonth: '',
+    earlyRolloverMonth: null,
+    earlyRolloverBills: [],
     upcomingMonth: null,
     currentBills: [],
     upcomingBills: [],
@@ -139,20 +142,21 @@ export default function Dashboard() {
   const fetchDashboardData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      let sData, bData, wData, subData = [];
+      let sData, bData, wData, subData, rbData = [];
 
       let fetchSuccess = false;
 
       if (navigator.onLine) {
         try {
-          const [sRes, bRes, wRes, subRes] = await withTimeout(Promise.all([
+          const [sRes, bRes, wRes, subRes, rbRes] = await withTimeout(Promise.all([
             supabase.from('settings').select('*').eq('user_id', user.id).single(),
             supabase.from('bills').select('*').eq('user_id', user.id).order('id', { ascending: false }),
             supabase.from('withdrawals').select('*').eq('user_id', user.id),
-            supabase.from('subscriptions').select('*').eq('user_id', user.id).order('renewal_date', { ascending: true })
+            supabase.from('subscriptions').select('*').eq('user_id', user.id).order('renewal_date', { ascending: true }),
+            supabase.from('recurring_bills').select('*').eq('user_id', user.id)
           ]), 5000);
 
-          if (sRes.error && sRes.error.code !== 'PGRST116') throw sRes.error; // PGRST116 is "no rows found", which is fine for settings
+          if (sRes.error && sRes.error.code !== 'PGRST116') throw sRes.error;
           if (bRes.error) throw bRes.error;
           if (wRes.error) throw wRes.error;
           if (subRes.error) throw subRes.error;
@@ -161,29 +165,71 @@ export default function Dashboard() {
           bData = bRes.data;
           wData = wRes.data;
           subData = subRes.data;
+          rbData = rbRes.data;
 
           fetchSuccess = true;
-          localStorage.setItem('offline_dashboard_data', JSON.stringify({ sData, bData, wData, subData: subRes.data }));
+          localStorage.setItem('offline_dashboard_data', JSON.stringify({ sData, bData, wData, subData: subRes.data, rbData: rbRes.data }));
         } catch (e) {
           console.warn("Live fetch failed or timed out, falling back to cache", e);
         }
       }
 
       if (!fetchSuccess) {
-        // Read from cache
         const cache = JSON.parse(localStorage.getItem('offline_dashboard_data') || '{}');
         sData = cache.sData || null;
         bData = cache.bData || [];
         wData = cache.wData || [];
         subData = cache.subData || [];
+        rbData = cache.rbData || [];
       }
 
       const stgs = { income: sData?.monthly_income || 0, savings: sData?.savings_account_balance || 0 };
       setSettings(stgs);
 
-      const currentMonth = getCurrentMonthStr();
-      const nextMonth = getNextMonthStr();
+      const currentCalMonth = getCurrentMonthStr();
+      const nextCalMonth = getNextMonthStr();
+      const d = new Date();
+      d.setMonth(d.getMonth() - 1);
+      const prevCalMonth = d.toLocaleString('default', { month: 'long', year: 'numeric' });
       const todayDay = new Date().getDate();
+
+      // Detect Rollovers
+      const hasRolledOverCurrent = (wData || []).some(w => Number(w.amount) === 0 && w.reason === `ROLLOVER_${currentCalMonth}`);
+      const hasRolledOverPrev = (wData || []).some(w => Number(w.amount) === 0 && w.reason === `ROLLOVER_${prevCalMonth}`);
+      const prevMonthHasBills = (bData || []).some(b => b.month === prevCalMonth);
+
+      // Auto-Rollover Guard
+      if (prevMonthHasBills && !hasRolledOverPrev) {
+        setPendingAutoRollover(prevCalMonth);
+      } else {
+        setPendingAutoRollover(null);
+      }
+
+      let appActiveMonth = currentCalMonth;
+      let earlyRolloverMonth = null;
+      if (hasRolledOverCurrent) {
+        appActiveMonth = nextCalMonth;
+        earlyRolloverMonth = currentCalMonth;
+      }
+
+      // Auto-generate upcoming bills on the 15th
+      let upcomingBillsExist = (bData || []).some(b => b.month === nextCalMonth);
+      if (todayDay >= 15 && !upcomingBillsExist && (rbData || []).length > 0 && navigator.onLine) {
+        const newBills = (rbData || []).map(rb => ({
+          biller: rb.biller,
+          month: nextCalMonth,
+          statement_date: rb.statement_date,
+          due_date: rb.due_date,
+          amount: 0,
+          status: 'Unpaid',
+          channel: rb.channel,
+          user_id: user.id
+        }));
+        const { data: insertedBills } = await supabase.from('bills').insert(newBills).select();
+        if (insertedBills) {
+          bData = [...(bData || []), ...insertedBills];
+        }
+      }
 
       let billsThisMonthSum = 0;
       let paidThisMonthSum = 0;
@@ -192,40 +238,40 @@ export default function Dashboard() {
       let totalWithdrawn = 0;
 
       const currentBills = [];
+      const earlyRolloverBills = [];
       const upcomingBills = [];
       const rawHistory = {};
       const rawWithdrawals = {};
 
-      // Process Withdrawals (filter out 0 amounts which are placeholders)
       (wData || []).forEach(w => {
         const amt = Number(w.amount);
-        if (amt === 0) return; // Skip placeholders from Cash Log
+        if (amt === 0) return; 
 
         if (!rawWithdrawals[w.month]) rawWithdrawals[w.month] = { total: 0, logs: [] };
         rawWithdrawals[w.month].logs.push(w);
         rawWithdrawals[w.month].total += amt;
 
-        if (w.month === currentMonth) {
+        if (w.month === appActiveMonth) {
           totalWithdrawn += amt;
         }
       });
 
-      // Process Bills
       (bData || []).forEach(b => {
         const amt = Number(b.amount) || 0;
         const isPassThrough = (b.channel || '').toUpperCase().includes('CC');
         const isPaid = b.status === 'Paid';
 
-        if (b.month === currentMonth) {
+        if (b.month === appActiveMonth) {
           currentBills.push(b);
           countTotal++;
           if (isPaid) countPaid++;
-
           if (!isPassThrough) {
             billsThisMonthSum += amt;
             if (isPaid) paidThisMonthSum += amt;
           }
-        } else if (b.month === nextMonth && todayDay >= 15) {
+        } else if (earlyRolloverMonth && b.month === earlyRolloverMonth) {
+          earlyRolloverBills.push(b);
+        } else if (b.month === nextCalMonth && appActiveMonth !== nextCalMonth && todayDay >= 15) {
           upcomingBills.push(b);
         } else {
           if (!rawHistory[b.month]) rawHistory[b.month] = [];
@@ -243,12 +289,15 @@ export default function Dashboard() {
       };
 
       currentBills.sort(sortByDueDate);
+      earlyRolloverBills.sort(sortByDueDate);
       upcomingBills.sort(sortByDueDate);
       Object.keys(rawHistory).forEach(m => rawHistory[m].sort(sortByDueDate));
 
       setDashboardData({
-        currentMonth,
-        upcomingMonth: todayDay >= 15 ? nextMonth : null,
+        appActiveMonth,
+        earlyRolloverMonth,
+        earlyRolloverBills,
+        upcomingMonth: todayDay >= 15 ? nextCalMonth : null,
         currentBills,
         upcomingBills,
         subscriptions: subData,
@@ -264,7 +313,7 @@ export default function Dashboard() {
       let firstDue = null;
       currentBills.forEach(b => {
         if (b.status !== 'Paid') {
-          const dueDate = parseDueDateLogic(b.due_date, currentMonth);
+          const dueDate = parseDueDateLogic(b.due_date, appActiveMonth);
           if (dueDate) {
             const diffMs = dueDate.getTime() - today.getTime();
             const diffDays = diffMs / (1000 * 60 * 60 * 24);
@@ -343,6 +392,22 @@ export default function Dashboard() {
           const { error } = await withTimeout(supabase.from('bills').update(payload).eq('id', billId), 4000);
           if (error) throw error;
           success = true;
+          
+          // Check if this was the last unpaid bill
+          const unpaidRemaining = dashboardData.currentBills.filter(b => b.status !== 'Paid' && b.id !== billId);
+          if (unpaidRemaining.length === 0) {
+            const bill = dashboardData.currentBills.find(b => b.id === billId);
+            const newNet = netPosition - (bill && !(bill.channel || '').toUpperCase().includes('CC') ? Number(bill.amount) : 0);
+            
+            fetch('/api/telegram', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                message: `🎉 All <b>${dashboardData.appActiveMonth}</b> bills have been paid!\n\nYour total available cash is <b>₱${newNet.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>.\n\nCheck the app to review!`
+              })
+            }).catch(console.error);
+          }
+          
           fetchDashboardData(true);
         } catch (e) {
           console.warn("Live mark paid failed or timed out, falling back to offline queue");
@@ -443,39 +508,35 @@ export default function Dashboard() {
     return lastWeekStart - now.getDate();
   };
 
-  const executeCloseMonth = async () => {
+  const executeCloseMonth = async (targetMonth = dashboardData.appActiveMonth) => {
     setShowCloseMonthModal(false);
+    setPendingAutoRollover(null);
     try {
-      // 1. Mark all unpaid current bills as Paid
-      const unpaidBills = dashboardData.currentBills.filter(b => b.status !== 'Paid');
+      // 1. Mark all unpaid current bills for the target month as Paid
+      const billsToClose = dashboardData.currentBills.concat(dashboardData.earlyRolloverBills || []).concat(dashboardData.historyMonths[targetMonth] || []);
+      const unpaidBills = billsToClose.filter(b => b.month === targetMonth && b.status !== 'Paid');
+      
       for (const bill of unpaidBills) {
         await supabase.from('bills').update({ status: 'Paid', paid_date: new Date().toISOString() }).eq('id', bill.id);
       }
 
       // 2. Update savings to netPosition, reset income to 0 for the new month
+      const currentNetPosition = netPosition;
       const { data: existing } = await supabase.from('settings').select('id').eq('user_id', user.id).single();
       if (existing) {
-        await supabase.from('settings').update({ savings_account_balance: netPosition, monthly_income: 0 }).eq('user_id', user.id);
+        await supabase.from('settings').update({ savings_account_balance: currentNetPosition, monthly_income: 0 }).eq('user_id', user.id);
       } else {
-        await supabase.from('settings').insert({ user_id: user.id, savings_account_balance: netPosition, monthly_income: 0 });
+        await supabase.from('settings').insert({ user_id: user.id, savings_account_balance: currentNetPosition, monthly_income: 0 });
       }
 
-      // 3. Generate next month's bills from recurring billers
-      const nextMonth = getNextMonthStr();
-      const { data: billers } = await supabase.from('recurring_bills').select('*').eq('user_id', user.id);
-      if (billers && billers.length > 0) {
-        const newBills = billers.map(rb => ({
-          biller: rb.biller,
-          month: nextMonth,
-          statement_date: rb.statement_date,
-          due_date: rb.due_date,
-          amount: 0,
-          status: 'Unpaid',
-          channel: rb.channel,
-          user_id: user.id
-        }));
-        await supabase.from('bills').insert(newBills);
-      }
+      // 3. Insert ROLLOVER placeholder to mark the month as closed
+      await supabase.from('withdrawals').insert({
+        month: targetMonth,
+        amount: 0,
+        reason: `ROLLOVER_${targetMonth}`,
+        date: new Date().toISOString(),
+        user_id: user.id
+      });
 
       fetchDashboardData();
     } catch (e) {
@@ -521,6 +582,22 @@ export default function Dashboard() {
 
   return (
     <div ref={swipeRef} style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      
+      {/* AUTO-ROLLOVER GUARD */}
+      {pendingAutoRollover && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+          <div className="glass-card" style={{ maxWidth: '400px', width: '100%', textAlign: 'center', padding: '30px' }}>
+            <h2 style={{ margin: '0 0 16px', color: 'var(--accent)' }}>Welcome to {getCurrentMonthStr()}! 🎉</h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '24px', lineHeight: '1.5' }}>
+              We noticed you didn't close <strong>{pendingAutoRollover}</strong>. To keep your math accurate, we need to snapshot your remaining cash (₱{netPosition.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) and carry it over into the new month.
+            </p>
+            <button onClick={() => executeCloseMonth(pendingAutoRollover)} style={{ background: 'var(--accent)', color: '#000', border: 'none', padding: '16px', width: '100%', borderRadius: '12px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer' }}>
+              Rollover into {getCurrentMonthStr()}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* HEADER */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -741,7 +818,26 @@ export default function Dashboard() {
         <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Loading dashboard...</div>
       ) : (
         <div>
-          <div style={{ display: activeTab === 'active' ? 'block' : 'none' }}>
+          <div style={{ display: activeTab === 'active' ? 'flex' : 'none', flexDirection: 'column', gap: '20px' }}>
+            
+            {dashboardData.earlyRolloverMonth && (
+              <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
+                <div
+                  style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontWeight: '600', fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                      {dashboardData.earlyRolloverMonth} -
+                      <span style={{ color: 'var(--danger)', fontWeight: '900', marginLeft: '4px' }}>
+                        {dashboardData.earlyRolloverBills.filter(b => b.status !== 'Paid').length} Unpaid Bill(s)
+                      </span>
+                    </span>
+                  </div>
+                  <ChevronDown size={16} color="var(--text-muted)" />
+                </div>
+              </div>
+            )}
+
             <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
               <div
                 onClick={() => setCurrentMonthExpanded(!currentMonthExpanded)}
@@ -749,7 +845,7 @@ export default function Dashboard() {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontWeight: '600', fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                    {dashboardData.currentMonth} -
+                    {dashboardData.appActiveMonth} -
                     <span style={{ color: 'var(--danger)', fontWeight: '900', marginLeft: '4px' }}>
                       {unpaidActiveCount} Unpaid Bill{unpaidActiveCount !== 1 ? 's' : ''}
                     </span>
@@ -912,7 +1008,7 @@ export default function Dashboard() {
 
       {isAddBillerOpen && <AddBillerModal onClose={() => setIsAddBillerOpen(false)} onBillerAdded={() => fetchDashboardData(true)} />}
       {isRemoveBillerOpen && <RemoveBillerModal onClose={() => setIsRemoveBillerOpen(false)} onBillerRemoved={() => fetchDashboardData(true)} />}
-      {isWithdrawOpen && <WithdrawModal onClose={() => setIsWithdrawOpen(false)} onWithdraw={() => fetchDashboardData(true)} />}
+      {isWithdrawOpen && <WithdrawModal onClose={() => setIsWithdrawOpen(false)} onWithdraw={() => fetchDashboardData(true)} isEarlyRollover={!!dashboardData.earlyRolloverMonth} />}
       {isAddSubOpen && <AddSubModal onClose={() => setIsAddSubOpen(false)} onSubAdded={() => fetchDashboardData(true)} />}
 
       {isScanning && (
