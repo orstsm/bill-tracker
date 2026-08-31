@@ -189,9 +189,21 @@ export default function Dashboard() {
       const currentCalMonth = getCurrentMonthStr();
       const nextCalMonth = getNextMonthStr();
       const d = new Date();
+      d.setDate(1); // Prevent 31st overflow bug
       d.setMonth(d.getMonth() - 1);
       const prevCalMonth = d.toLocaleString('default', { month: 'long', year: 'numeric' });
       const todayDay = new Date().getDate();
+
+      // CLEANUP: Delete prematurely generated October bills caused by JS Date overflow bug
+      if (currentCalMonth === 'August 2026') {
+        const hasOctBills = (bData || []).some(b => b.month === 'October 2026' && Number(b.amount) === 0);
+        if (hasOctBills) {
+          if (navigator.onLine) {
+            await supabase.from('bills').delete().eq('month', 'October 2026').eq('user_id', user.id).eq('amount', 0);
+          }
+          bData = bData.filter(b => !(b.month === 'October 2026' && Number(b.amount) === 0));
+        }
+      }
 
       // Detect Rollovers
       const hasRolledOverCurrent = (wData || []).some(w => Number(w.amount) === 0 && w.reason === `ROLLOVER_${currentCalMonth}`);
@@ -282,7 +294,7 @@ export default function Dashboard() {
       const sortByDueDate = (a, b) => {
         const dA = parseDueDateLogic(a.due_date, a.month);
         const dB = parseDueDateLogic(b.due_date, b.month);
-        if (!dA && !dB) return 0;
+        if (!dA && !dB) return (b.id || 0) - (a.id || 0); // Maintain id DESC (newest at top) for empty due dates
         if (!dA) return 1;
         if (!dB) return -1;
         return dA.getTime() - dB.getTime();

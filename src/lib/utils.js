@@ -5,6 +5,7 @@ export function getCurrentMonthStr() {
 
 export function getNextMonthStr() {
   const d = new Date();
+  d.setDate(1); // Set to 1st to prevent overflow on months with 31 days
   d.setMonth(d.getMonth() + 1);
   return d.toLocaleString('default', { month: 'long', year: 'numeric' });
 }
