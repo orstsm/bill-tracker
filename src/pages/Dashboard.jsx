@@ -26,7 +26,8 @@ export default function Dashboard() {
 
   // Expandable states (shared/mutually exclusive)
   const [summaryExpanded, setSummaryExpanded] = useState(false);
-  const [currentMonthExpanded, setCurrentMonthExpanded] = useState(false);
+  const [currentMonthExpanded, setCurrentMonthExpanded] = useState(true);
+  const [earlyRolloverExpanded, setEarlyRolloverExpanded] = useState(false);
   const [expandedPreviousMonth, setExpandedPreviousMonth] = useState(null);
   const [isSubsExpanded, setIsSubsExpanded] = useState(false);
   const [showCloseMonthModal, setShowCloseMonthModal] = useState(false);
@@ -835,6 +836,7 @@ export default function Dashboard() {
             {dashboardData.earlyRolloverMonth && (
               <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
                 <div
+                  onClick={() => setEarlyRolloverExpanded(!earlyRolloverExpanded)}
                   style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -845,8 +847,22 @@ export default function Dashboard() {
                       </span>
                     </span>
                   </div>
-                  <ChevronDown size={16} color="var(--text-muted)" />
+                  {earlyRolloverExpanded ? <ChevronUp size={16} color="var(--text-muted)" /> : <ChevronDown size={16} color="var(--text-muted)" />}
                 </div>
+
+                {earlyRolloverExpanded && (
+                  <div style={{ borderTop: '0.5px solid var(--border-color)' }}>
+                    <BillList
+                      bills={dashboardData.earlyRolloverBills}
+                      onScanRequest={() => setIsScanning(true)}
+                      onAmountUpdate={handleAmountUpdate}
+                      onMarkPaid={handleMarkAsPaid}
+                      urgencyMap={urgencyMap}
+                      scrollToBillId={scrollToBillId}
+                      onScrollComplete={() => setScrollToBillId(null)}
+                    />
+                  </div>
+                )}
               </div>
             )}
 
