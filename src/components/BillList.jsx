@@ -2,6 +2,66 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ScanLine, ChevronDown, ChevronUp } from 'lucide-react';
 
+const AmountInput = ({ bill, readOnly, amountColor, onAmountUpdate, isMobile }) => {
+  const [localValue, setLocalValue] = useState(Number(bill.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 }));
+
+  useEffect(() => {
+    setLocalValue(Number(bill.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 }));
+  }, [bill.amount]);
+
+  const handleFocus = (e) => {
+    if (!readOnly) {
+      if (!isMobile) e.target.style.borderColor = 'var(--accent)';
+      if (localValue === '0.00' || localValue === '0') {
+        setLocalValue('');
+      }
+    }
+  };
+
+  const handleBlur = (e) => {
+    if (!readOnly) {
+      if (!isMobile) e.target.style.borderColor = 'var(--glass-border)';
+      if (localValue === '') {
+        setLocalValue('0.00');
+        onAmountUpdate(bill.id, '0.00', bill.amount);
+      } else {
+        onAmountUpdate(bill.id, localValue, bill.amount);
+      }
+    }
+  };
+
+  const handleChange = (e) => {
+    setLocalValue(e.target.value);
+  };
+
+  const desktopStyle = {
+    background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)',
+    padding: '8px 12px', borderRadius: '6px', color: amountColor,
+    fontWeight: 'bold', width: '120px', outline: 'none',
+    cursor: readOnly ? 'default' : 'text', opacity: readOnly && bill.status !== 'Paid' ? 0.7 : 1
+  };
+
+  const mobileStyle = {
+    background: 'rgba(118, 118, 128, 0.24)', border: 'none',
+    padding: '6px 10px', borderRadius: '6px', color: amountColor,
+    fontWeight: '600', width: '100px', outline: 'none', textAlign: 'right',
+    cursor: readOnly ? 'default' : 'text', opacity: readOnly && bill.status !== 'Paid' ? 0.7 : 1, fontSize: '14px'
+  };
+
+  return (
+    <input
+      type="text"
+      value={localValue}
+      onChange={handleChange}
+      readOnly={readOnly}
+      onBlur={handleBlur}
+      onFocus={handleFocus}
+      onClick={(e) => { if (isMobile) e.stopPropagation(); }}
+      style={isMobile ? mobileStyle : desktopStyle}
+    />
+  );
+};
+
 export default function BillList({ bills, onScanRequest, onAmountUpdate, onMarkPaid, isHistory = false, urgencyMap = {}, scrollToBillId = null, onScrollComplete }) {
   const [confirmModal, setConfirmModal] = useState({ show: false, billId: null, amount: 0 });
   const [savingId, setSavingId] = useState(null);
@@ -109,18 +169,12 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, onMarkP
                           <div className="custom-tooltip-arrow" />
                         </div>
                       )}
-                      <input
-                        type="text"
-                        defaultValue={displayAmount}
+                      <AmountInput
+                        bill={bill}
                         readOnly={readOnly}
-                        onBlur={(e) => handleAmountBlur(bill.id, e.target.value, bill.amount)}
-                        style={{
-                          background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)',
-                          padding: '8px 12px', borderRadius: '6px', color: amountColor,
-                          fontWeight: 'bold', width: '120px', outline: 'none',
-                          cursor: readOnly ? 'default' : 'text', opacity: readOnly && !isPaid ? 0.7 : 1
-                        }}
-                        onFocus={(e) => { if (!readOnly) e.target.style.borderColor = 'var(--accent)' }}
+                        amountColor={amountColor}
+                        onAmountUpdate={handleAmountBlur}
+                        isMobile={false}
                       />
                       {isSaving && <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold' }}>Saving...</span>}
                     </div>
@@ -200,18 +254,12 @@ export default function BillList({ bills, onScanRequest, onAmountUpdate, onMarkP
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontWeight: 'bold', color: 'var(--text-muted)', fontSize: '12px' }}>Amount</span>
-                    <input
-                      type="text"
-                      defaultValue={displayAmount}
+                    <AmountInput
+                      bill={bill}
                       readOnly={readOnly}
-                      onBlur={(e) => handleAmountBlur(bill.id, e.target.value, bill.amount)}
-                      onClick={(e) => e.stopPropagation()}
-                      style={{
-                        background: 'rgba(118, 118, 128, 0.24)', border: 'none',
-                        padding: '6px 10px', borderRadius: '6px', color: amountColor,
-                        fontWeight: '600', width: '100px', outline: 'none', textAlign: 'right',
-                        cursor: readOnly ? 'default' : 'text', opacity: readOnly && !isPaid ? 0.7 : 1, fontSize: '14px'
-                      }}
+                      amountColor={amountColor}
+                      onAmountUpdate={handleAmountBlur}
+                      isMobile={true}
                     />
                   </div>
                   {isFinal && bill.final_date && (

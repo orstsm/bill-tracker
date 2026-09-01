@@ -26,7 +26,7 @@ export default function Dashboard() {
 
   // Expandable states (shared/mutually exclusive)
   const [summaryExpanded, setSummaryExpanded] = useState(false);
-  const [currentMonthExpanded, setCurrentMonthExpanded] = useState(true);
+  const [currentMonthExpanded, setCurrentMonthExpanded] = useState(false);
   const [earlyRolloverExpanded, setEarlyRolloverExpanded] = useState(false);
   const [expandedPreviousMonth, setExpandedPreviousMonth] = useState(null);
   const [isSubsExpanded, setIsSubsExpanded] = useState(false);

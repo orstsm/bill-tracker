@@ -68,21 +68,15 @@ export function withTimeout(promise, ms = 5000) {
 export function getMondaysUntilNextFifth() {
   const now = new Date();
   
-  // Find the next 5th of the month
-  let nextPayday = new Date(now.getFullYear(), now.getMonth(), 5);
-  // If today is past the 5th, the next payday is the 5th of the NEXT month.
-  // Wait, if today IS the 5th, maybe we don't count it. Let's say if it's strictly > 5th or >= 5th?
-  // Usually if today is the 5th, you get paid today. 
-  if (now.getDate() >= 5) {
-    nextPayday = new Date(now.getFullYear(), now.getMonth() + 1, 5);
-  }
+  // Find the last day of the current month
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
   let count = 0;
   let current = new Date(now);
   current.setHours(0, 0, 0, 0);
 
-  // Count Mondays (where getDay() === 1)
-  while (current <= nextPayday) {
+  // Count Mondays (where getDay() === 1) until the end of the current month
+  while (current <= endOfMonth) {
     if (current.getDay() === 1) {
       count++;
     }
