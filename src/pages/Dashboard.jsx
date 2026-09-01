@@ -244,6 +244,28 @@ export default function Dashboard() {
         }
       }
 
+      // TEMP SYNC: If user manually updated recurring_bills, sync those missing fields to the generated bills
+      if (navigator.onLine && (rbData || []).length > 0 && (bData || []).length > 0) {
+        const billsToUpdate = bData.filter(b => (b.month === appActiveMonth || b.month === nextCalMonth) && !b.due_date);
+        if (billsToUpdate.length > 0) {
+          let hasUpdates = false;
+          for (let b of billsToUpdate) {
+            const rb = rbData.find(r => r.biller === b.biller);
+            if (rb && (rb.due_date || rb.statement_date || rb.channel)) {
+              await supabase.from('bills').update({
+                due_date: rb.due_date,
+                statement_date: rb.statement_date,
+                channel: rb.channel
+              }).eq('id', b.id);
+              b.due_date = rb.due_date;
+              b.statement_date = rb.statement_date;
+              b.channel = rb.channel;
+              hasUpdates = true;
+            }
+          }
+        }
+      }
+
       let billsThisMonthSum = 0;
       let paidThisMonthSum = 0;
       let countPaid = 0;
