@@ -490,7 +490,7 @@ export default function Dashboard() {
         alert("You must be online to cancel subscriptions.");
         return;
       }
-      const { error } = await supabase.from('subscriptions').update({ status: 'Cancelled' }).eq('id', sub.id);
+      const { error } = await supabase.from('subscriptions').delete().eq('id', sub.id);
       if (error) throw error;
       fetchDashboardData(true);
     } catch (e) {
@@ -982,13 +982,16 @@ export default function Dashboard() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {sortMonthsDescending(Object.keys(dashboardData.historyMonths)).map(month => {
                       const isExpanded = expandedPreviousMonth === month;
+                      const totalPaid = dashboardData.historyMonths[month].reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+                      const formattedTotal = totalPaid.toLocaleString('en-PH', { minimumFractionDigits: 2 });
                       return (
                         <div key={month} className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
                           <div
                             onClick={() => setExpandedPreviousMonth(isExpanded ? null : month)}
-                            style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold', cursor: 'pointer' }}
+                            style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }}
                           >
-                            {isExpanded ? '▼' : '▶'} {month}
+                            <span>{isExpanded ? '▼' : '▶'} {month}</span>
+                            <span style={{ color: 'var(--text-muted)' }}>Paid ₱{formattedTotal}</span>
                           </div>
                           {isExpanded && <BillList bills={dashboardData.historyMonths[month]} onAmountUpdate={handleAmountUpdate} onMarkPaid={handleMarkAsPaid} isHistory={true} />}
                         </div>
@@ -1012,26 +1015,28 @@ export default function Dashboard() {
                 <p>No incoming bills generated for next month yet.<br />They will appear here automatically on the 15th.</p>
               )}
             </div>
-
           </div>
+          
           <div style={{ display: activeTab === 'previous' ? 'block' : 'none' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {sortMonthsDescending(Object.keys(dashboardData.historyMonths)).map(month => {
                 const isExpanded = expandedPreviousMonth === month;
+                const totalPaid = dashboardData.historyMonths[month].reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+                const formattedTotal = totalPaid.toLocaleString('en-PH', { minimumFractionDigits: 2 });
                 return (
                   <div key={month} className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
                     <div
                       onClick={() => setExpandedPreviousMonth(isExpanded ? null : month)}
-                      style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold', cursor: 'pointer' }}
+                      style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }}
                     >
-                      {isExpanded ? '▼' : '▶'} {month}
+                      <span>{isExpanded ? '▼' : '▶'} {month}</span>
+                      <span style={{ color: 'var(--text-muted)' }}>Paid ₱{formattedTotal}</span>
                     </div>
                     {isExpanded && <BillList bills={dashboardData.historyMonths[month]} onAmountUpdate={handleAmountUpdate} onMarkPaid={handleMarkAsPaid} isHistory={true} />}
                   </div>
                 );
               })}
             </div>
-
           </div>
 
           <div style={{ display: activeTab === 'cashLog' ? 'block' : 'none' }}>
