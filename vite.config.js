@@ -8,7 +8,20 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        runtimeCaching: [
+          {
+            urlPattern: /\/logos\/billers\/.*\.webp$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'biller-logos-v1',
+              expiration: {
+                maxEntries: 60,
+                maxAgeSeconds: 60 * 60 * 24 * 90,
+              },
+            },
+          },
+        ],
       },
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {

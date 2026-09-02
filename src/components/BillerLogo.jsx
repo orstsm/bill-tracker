@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { findBiller, normalizeBillerName } from '../data/billerCatalog';
 
 const LOGO_MAP = {
   bpi: 'BPI.png',
@@ -15,9 +16,14 @@ const LOGO_MAP = {
 export default function BillerLogo({ biller = '', size = 38, className = '', style = {} }) {
   const [hasError, setHasError] = useState(false);
 
-  const cleanKey = (biller || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const cleanKey = normalizeBillerName(biller);
+  const catalogBiller = findBiller(biller);
   const fileName = LOGO_MAP[cleanKey] || `${biller.trim()}.png`;
-  const logoSrc = `/logos/${fileName}`;
+  const logoSrc = catalogBiller?.logo || `/logos/${fileName}`;
+
+  useEffect(() => {
+    setHasError(false);
+  }, [logoSrc]);
 
   const radius = Math.round(size * 0.26);
 

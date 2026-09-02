@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/auth';
+import BillerPicker from './BillerPicker';
 
 export default function AddBillerModal({ onClose, onBillerAdded }) {
   const { user } = useAuth();
@@ -64,16 +65,7 @@ export default function AddBillerModal({ onClose, onBillerAdded }) {
         </div>
         
         <form onSubmit={handleSubmit} className="sheet-body">
-          <div>
-            <label className="native-label">Biller Name</label>
-            <input 
-              required
-              className="native-input"
-              placeholder="e.g., Meralco, BPI"
-              value={biller}
-              onChange={e => setBiller(e.target.value)}
-            />
-          </div>
+          <BillerPicker value={biller} onChange={setBiller} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div>
               <label className="native-label">Statement Date</label>

@@ -762,6 +762,131 @@ select:focus-visible {
   font-size: 16px;
 }
 
+.biller-picker {
+  position: relative;
+}
+
+.biller-picker-search-icon {
+  position: absolute;
+  z-index: 1;
+  top: 15px;
+  left: 14px;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.biller-picker-input {
+  padding-left: 42px;
+  padding-right: 34px;
+}
+
+.biller-picker-results {
+  max-height: 252px;
+  margin-top: 7px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--separator);
+  border-radius: 14px;
+  background: var(--bg-card);
+  box-shadow: 0 10px 28px rgba(24, 24, 27, 0.12);
+  -webkit-overflow-scrolling: touch;
+}
+
+.biller-picker-option {
+  width: 100%;
+  min-height: 58px;
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border: 0;
+  border-bottom: 1px solid var(--separator);
+  background: transparent;
+  color: var(--text-main);
+  text-align: left;
+}
+
+.biller-picker-option:active {
+  background: var(--accent-soft);
+}
+
+.biller-picker-option-copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.biller-picker-option-copy strong {
+  overflow: hidden;
+  color: var(--text-main);
+  font-size: 14px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.biller-picker-option-copy small,
+.selected-biller-preview small {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.biller-picker-option > svg,
+.selected-biller-preview > svg {
+  flex: 0 0 auto;
+  color: var(--accent-strong);
+}
+
+.biller-picker-custom {
+  width: 100%;
+  min-height: 48px;
+  padding: 11px 14px;
+  border: 0;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  text-align: left;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.biller-picker-empty {
+  margin: 0;
+  padding: 15px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.selected-biller-preview {
+  min-height: 54px;
+  margin-top: 8px;
+  padding: 8px 11px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--accent-soft) 58%, var(--bg-card));
+}
+
+.selected-biller-preview > span {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.selected-biller-preview strong {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .native-label {
   display: block;
   margin: 0 0 7px 3px;
