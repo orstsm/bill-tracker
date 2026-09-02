@@ -39,19 +39,10 @@ const money = (value) => `₱${Number(value || 0).toLocaleString('en-PH', {
 function HeaderMascot() {
   return (
     <span className="header-mascot-inline" aria-hidden="true">
-      <span className="header-mascot-runner">
-        <span className="header-mascot-facing">
-          <span className="header-mascot-body">
-            <span className="header-mascot-run-frames">
-              <img className="header-mascot-run-a" src="/mascot/billy-run-a.png" alt="" draggable="false" />
-              <img className="header-mascot-run-b" src="/mascot/billy-run-b.png" alt="" draggable="false" />
-            </span>
-            <img className="header-mascot-tired" src="/mascot/billy-tired.png" alt="" draggable="false" />
-            <span className="header-mascot-sweat" />
-            <span className="header-mascot-breath" />
-          </span>
-        </span>
-      </span>
+      <picture>
+        <source media="(prefers-reduced-motion: reduce)" srcSet="/mascot/billy-run-a.png" />
+        <img src="/mascot/billy-running.webp" alt="" draggable="false" />
+      </picture>
     </span>
   );
 }
