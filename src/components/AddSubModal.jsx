@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth';
 import { withTimeout } from '../lib/utils';
 
 export default function AddSubModal({ onClose, onSubAdded }) {
@@ -48,19 +47,20 @@ export default function AddSubModal({ onClose, onSubAdded }) {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-      <div className="glass-card animate-fade" style={{ width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', background: 'var(--card-bg)', borderRadius: '16px', padding: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>Add Subscription</h2>
+    <div className="sheet-backdrop">
+      <section className="ios-sheet" role="dialog" aria-modal="true" aria-labelledby="add-sub-title" data-no-swipe>
+        <div className="sheet-grabber" />
+        <div className="sheet-header">
+          <h2 id="add-sub-title">Add Subscription</h2>
           <button 
             onClick={onClose}
-            style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: '16px', fontWeight: '500' }}
+            className="sheet-cancel"
           >
             Cancel
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleSubmit} className="sheet-body">
           <div>
             <label className="native-label">Subscription Name</label>
             <input required type="text" className="native-input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Gemini, Netflix" />
@@ -68,7 +68,7 @@ export default function AddSubModal({ onClose, onSubAdded }) {
           
           <div>
             <label className="native-label">Amount</label>
-            <input required type="text" className="native-input" value={amount} onChange={e => setAmount(e.target.value)} placeholder="e.g. 1000.00" />
+            <input required type="text" inputMode="decimal" className="native-input" value={amount} onChange={e => setAmount(e.target.value)} placeholder="e.g. 1000.00" />
           </div>
 
           <div>
@@ -84,11 +84,11 @@ export default function AddSubModal({ onClose, onSubAdded }) {
             </select>
           </div>
           
-          <button type="submit" disabled={loading} style={{ background: 'var(--accent)', color: '#fff', border: 'none', padding: '16px', borderRadius: '12px', fontSize: '16px', fontWeight: '600', width: '100%', opacity: loading ? 0.7 : 1, marginTop: '8px' }}>
+          <button type="submit" className="primary-button" disabled={loading} style={{ opacity: loading ? 0.7 : 1 }}>
             {loading ? 'Adding...' : 'Add Subscription'}
           </button>
         </form>
-      </div>
+      </section>
     </div>
   );
 }

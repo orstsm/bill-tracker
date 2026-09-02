@@ -1,7 +1,6 @@
 import fs from 'fs';
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
-import readline from 'readline';
 
 dotenv.config();
 
@@ -10,13 +9,15 @@ const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const args = process.argv.slice(2);
-if (args.length < 2) {
-  console.log("Usage: node migrate.js <your-login-email> <your-login-password>");
+if (args.length < 4) {
+  console.log("Usage: node migrate.js <your-login-email> <your-login-password> <recurring-bills-csv-path> <bills-csv-path>");
   process.exit(1);
 }
 
 const email = args[0];
 const password = args[1];
+const recurringCsvPath = args[2];
+const billsCsvPath = args[3];
 
 function parseCSVLine(text) {
   const result = [];
@@ -54,12 +55,9 @@ async function run() {
   console.log("Authenticated! User ID:", userId);
 
   // 1. Migrate Recurring Bills
-  const recurringCsvPath = '/Users/orestes/Downloads/Bill Tracker - RecurringBills.csv';
   if (fs.existsSync(recurringCsvPath)) {
     console.log("Migrating Recurring Bills...");
     const lines = fs.readFileSync(recurringCsvPath, 'utf-8').split('\n').filter(l => l.trim().length > 0);
-    const headers = parseCSVLine(lines[0]);
-    
     for (let i = 1; i < lines.length; i++) {
       const cols = parseCSVLine(lines[i]);
       if (cols.length < 2) continue;
@@ -83,7 +81,6 @@ async function run() {
   }
 
   // 2. Migrate Bills & Withdrawals
-  const billsCsvPath = '/Users/orestes/Downloads/Bill Tracker - Bills.csv';
   if (fs.existsSync(billsCsvPath)) {
     console.log("Migrating Bills & Withdrawals...");
     const lines = fs.readFileSync(billsCsvPath, 'utf-8').split('\n').filter(l => l.trim().length > 0);

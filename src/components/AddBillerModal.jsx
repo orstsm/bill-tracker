@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth';
 
 export default function AddBillerModal({ onClose, onBillerAdded }) {
   const { user } = useAuth();
@@ -51,19 +50,20 @@ export default function AddBillerModal({ onClose, onBillerAdded }) {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-      <div className="glass-card animate-fade" style={{ width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', background: 'var(--card-bg)', borderRadius: '16px', padding: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>Add New Biller</h2>
+    <div className="sheet-backdrop">
+      <section className="ios-sheet" role="dialog" aria-modal="true" aria-labelledby="add-biller-title" data-no-swipe>
+        <div className="sheet-grabber" />
+        <div className="sheet-header">
+          <h2 id="add-biller-title">Add Biller</h2>
           <button 
             onClick={onClose}
-            style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: '16px', fontWeight: '500' }}
+            className="sheet-cancel"
           >
             Cancel
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleSubmit} className="sheet-body">
           <div>
             <label className="native-label">Biller Name</label>
             <input 
@@ -106,12 +106,13 @@ export default function AddBillerModal({ onClose, onBillerAdded }) {
           <button 
             type="submit" 
             disabled={loading}
-            style={{ marginTop: '8px', background: 'var(--accent)', color: '#fff', border: 'none', padding: '16px', borderRadius: '12px', fontSize: '16px', fontWeight: '600', width: '100%', opacity: loading ? 0.7 : 1 }}
+            className="primary-button"
+            style={{ opacity: loading ? 0.7 : 1 }}
           >
             {loading ? 'Adding...' : 'Add Biller'}
           </button>
         </form>
-      </div>
+      </section>
     </div>
   );
 }

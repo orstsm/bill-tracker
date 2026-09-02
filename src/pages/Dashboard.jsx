@@ -1,35 +1,27 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth';
 import { supabase } from '../lib/supabase';
-import { LogOut, Plus, Wallet, FileText, CheckCircle2, History, Banknote, ChevronDown, ChevronUp, Home, AlertCircle, MinusCircle } from 'lucide-react';
-import BillList from '../components/BillList';
-import AddBillerModal from '../components/AddBillerModal';
-import RemoveBillerModal from '../components/RemoveBillerModal';
-import WithdrawModal from '../components/WithdrawModal';
-
-import { getCurrentMonthStr, getNextMonthStr, sortMonthsDescending, parseDueDateLogic, withTimeout, getMondaysUntilNextFifth } from '../lib/utils';
-// We'll import the CashLog component shortly
-import CashLog from '../components/CashLog';
-import SubscriptionList from '../components/SubscriptionList';
-import AddSubModal from '../components/AddSubModal';
+import { getCurrentMonthStr, getNextMonthStr, parseDueDateLogic, withTimeout, getMondaysUntilNextFifth } from '../lib/utils';
 import useSwipeNav from '../hooks/useSwipeNav';
+import IosDashboard from '../components/IosDashboard';
+
+const TAB_ORDER = ['active', 'due', 'cashLog', 'settings'];
 
 export default function Dashboard() {
   const { user } = useAuth();
 
-  const [activeTab, setActiveTab] = useState('active'); // active, incoming, previous, cashLog
+  const [activeTab, setActiveTab] = useState('active');
+  const [homeTab, setHomeTab] = useState('current');
+  const [detailSheet, setDetailSheet] = useState(null);
   const [isAddBillerOpen, setIsAddBillerOpen] = useState(false);
   const [isRemoveBillerOpen, setIsRemoveBillerOpen] = useState(false);
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
   const [isAddSubOpen, setIsAddSubOpen] = useState(false);
 
   // Expandable states (shared/mutually exclusive)
-  const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [currentMonthExpanded, setCurrentMonthExpanded] = useState(false);
   const [earlyRolloverExpanded, setEarlyRolloverExpanded] = useState(false);
   const [expandedPreviousMonth, setExpandedPreviousMonth] = useState(null);
-  const [isSubsExpanded, setIsSubsExpanded] = useState(false);
   const [showCloseMonthModal, setShowCloseMonthModal] = useState(false);
   const [pendingAutoRollover, setPendingAutoRollover] = useState(null);
 
@@ -63,34 +55,23 @@ export default function Dashboard() {
     }
   });
 
-  const TAB_ORDER = ['active', 'due', 'cashLog'];
-
   const switchTab = useCallback((tab) => {
     setActiveTab(tab);
     setIsAddBillerOpen(false);
     setIsRemoveBillerOpen(false);
     setIsWithdrawOpen(false);
-    setIsScanning(false);
     setIsAddSubOpen(false);
     setShowCloseMonthModal(false);
   }, []);
 
-  // Swipe navigation: Home ⇄ Bills ⇄ Cash Log
-  const anyModalOpen = isAddBillerOpen || isRemoveBillerOpen || isWithdrawOpen || isScanning || isAddSubOpen || showCloseMonthModal;
+  const anyModalOpen = isAddBillerOpen || isRemoveBillerOpen || isWithdrawOpen || isAddSubOpen || showCloseMonthModal || Boolean(detailSheet);
+  const activeIndex = TAB_ORDER.indexOf(activeTab);
+  const handleSwipeIndexChange = useCallback((index) => switchTab(TAB_ORDER[index]), [switchTab]);
 
-  const onSwipeLeft = useCallback(() => {
-    const idx = TAB_ORDER.indexOf(activeTab);
-    if (idx < TAB_ORDER.length - 1) switchTab(TAB_ORDER[idx + 1]);
-  }, [activeTab, switchTab]);
-
-  const onSwipeRight = useCallback(() => {
-    const idx = TAB_ORDER.indexOf(activeTab);
-    if (idx > 0) switchTab(TAB_ORDER[idx - 1]);
-  }, [activeTab, switchTab]);
-
-  const swipeRef = useSwipeNav({
-    onSwipeLeft,
-    onSwipeRight,
+  const { viewportRef, trackRef } = useSwipeNav({
+    activeIndex,
+    count: TAB_ORDER.length,
+    onIndexChange: handleSwipeIndexChange,
     disabled: anyModalOpen,
   });
 
@@ -98,49 +79,7 @@ export default function Dashboard() {
     await supabase.auth.signOut();
   };
 
-  useEffect(() => {
-    const handleOnline = async () => {
-      try {
-        const queue = JSON.parse(localStorage.getItem('offline_withdrawals') || '[]');
-        if (queue.length > 0) {
-          console.log('Syncing offline withdrawals...', queue);
-          for (const item of queue) {
-            const payload = { amount: item.amount, reason: item.reason, month: item.month, user_id: item.user_id };
-            await supabase.from('withdrawals').insert(payload);
-          }
-          localStorage.removeItem('offline_withdrawals');
-        }
-
-        const updatesQueue = JSON.parse(localStorage.getItem('offline_bill_updates') || '[]');
-        if (updatesQueue.length > 0) {
-          console.log('Syncing offline bill updates...', updatesQueue);
-          for (const update of updatesQueue) {
-            await supabase.from('bills').update(update.payload).eq('id', update.billId);
-          }
-          localStorage.removeItem('offline_bill_updates');
-        }
-
-        if (queue.length > 0 || updatesQueue.length > 0) {
-          fetchDashboardData(true);
-        }
-      } catch (e) {
-        console.warn("Background sync failed (likely network drop), preserving queue.", e);
-      }
-    };
-
-    window.addEventListener('online', handleOnline);
-    if (navigator.onLine && user) {
-      handleOnline();
-    }
-
-    if (user) {
-      fetchDashboardData();
-    }
-
-    return () => window.removeEventListener('online', handleOnline);
-  }, [user]);
-
-  const fetchDashboardData = async (silent = false) => {
+  const fetchDashboardData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
       let sData, bData, wData, subData, rbData = [];
@@ -248,7 +187,6 @@ export default function Dashboard() {
       if (navigator.onLine && (rbData || []).length > 0 && (bData || []).length > 0) {
         const billsToUpdate = bData.filter(b => (b.month === appActiveMonth || b.month === nextCalMonth) && !b.due_date);
         if (billsToUpdate.length > 0) {
-          let hasUpdates = false;
           for (let b of billsToUpdate) {
             const rb = rbData.find(r => r.biller === b.biller);
             if (rb && (rb.due_date || rb.statement_date || rb.channel)) {
@@ -260,7 +198,6 @@ export default function Dashboard() {
               b.due_date = rb.due_date;
               b.statement_date = rb.statement_date;
               b.channel = rb.channel;
-              hasUpdates = true;
             }
           }
         }
@@ -373,7 +310,41 @@ export default function Dashboard() {
     } finally {
       if (!silent) setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    const handleOnline = async () => {
+      try {
+        const queue = JSON.parse(localStorage.getItem('offline_withdrawals') || '[]');
+        if (queue.length > 0) {
+          console.log('Syncing offline withdrawals...', queue);
+          for (const item of queue) {
+            const payload = { amount: item.amount, reason: item.reason, month: item.month, user_id: item.user_id };
+            await supabase.from('withdrawals').insert(payload);
+          }
+          localStorage.removeItem('offline_withdrawals');
+        }
+
+        const updatesQueue = JSON.parse(localStorage.getItem('offline_bill_updates') || '[]');
+        if (updatesQueue.length > 0) {
+          console.log('Syncing offline bill updates...', updatesQueue);
+          for (const update of updatesQueue) {
+            await supabase.from('bills').update(update.payload).eq('id', update.billId);
+          }
+          localStorage.removeItem('offline_bill_updates');
+        }
+
+        if (queue.length > 0 || updatesQueue.length > 0) fetchDashboardData(true);
+      } catch (error) {
+        console.warn('Background sync failed; preserving the offline queue.', error);
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    if (navigator.onLine && user) handleOnline();
+    if (user) fetchDashboardData();
+    return () => window.removeEventListener('online', handleOnline);
+  }, [user, fetchDashboardData]);
 
   const updateLocalCache = (billId, payload) => {
     const cache = JSON.parse(localStorage.getItem('offline_dashboard_data') || '{}');
@@ -400,7 +371,7 @@ export default function Dashboard() {
           if (error) throw error;
           success = true;
           fetchDashboardData(true); // Silent fetch to prevent flicker
-        } catch (e) {
+        } catch {
           console.warn("Live update failed or timed out, falling back to offline queue");
         }
       }
@@ -428,23 +399,8 @@ export default function Dashboard() {
           if (error) throw error;
           success = true;
           
-          // Check if this was the last unpaid bill
-          const unpaidRemaining = dashboardData.currentBills.filter(b => b.status !== 'Paid' && b.id !== billId);
-          if (unpaidRemaining.length === 0) {
-            const bill = dashboardData.currentBills.find(b => b.id === billId);
-            const newNet = netPosition - (bill && !(bill.channel || '').toUpperCase().includes('CC') ? Number(bill.amount) : 0);
-            
-            fetch('/api/telegram', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                message: `🎉 All <b>${dashboardData.appActiveMonth}</b> bills have been paid!\n\nYour total available cash is <b>₱${newNet.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>.\n\nCheck the app to review!`
-              })
-            }).catch(console.error);
-          }
-          
           fetchDashboardData(true);
-        } catch (e) {
+        } catch {
           console.warn("Live mark paid failed or timed out, falling back to offline queue");
         }
       }
@@ -580,14 +536,6 @@ export default function Dashboard() {
     }
   };
 
-  // Greeting logic
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 18) return 'Good Afternoon';
-    return 'Good Evening';
-  };
-
   const getDisplayName = () => {
     const email = user?.email || '';
     const local = email.split('@')[0] || '';
@@ -595,13 +543,6 @@ export default function Dashboard() {
     const parts = local.split('.');
     const name = parts[parts.length - 1];
     return name.charAt(0).toUpperCase() + name.slice(1);
-  };
-
-  const handleActionItemsClick = () => {
-    switchTab('due');
-    if (firstDueBillId) {
-      setTimeout(() => setScrollToBillId(firstDueBillId), 100);
-    }
   };
 
   const startingFunds = settings.income + settings.savings;
@@ -615,565 +556,64 @@ export default function Dashboard() {
 
   const unpaidActiveCount = dashboardData.summary.countTotal - dashboardData.summary.countPaid;
 
+  const remainingMondays = getMondaysUntilNextFifth();
+
   return (
-    <div ref={swipeRef} style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      
-      {/* AUTO-ROLLOVER GUARD */}
-      {pendingAutoRollover && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
-          <div className="glass-card" style={{ maxWidth: '400px', width: '100%', textAlign: 'center', padding: '30px' }}>
-            <h2 style={{ margin: '0 0 16px', color: 'var(--accent)' }}>Welcome to {getCurrentMonthStr()}! 🎉</h2>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '24px', lineHeight: '1.5' }}>
-              We noticed you didn't close <strong>{pendingAutoRollover}</strong>. To keep your math accurate, we need to snapshot your remaining cash (₱{netPosition.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) and carry it over into the new month.
-            </p>
-            <button onClick={() => executeCloseMonth(pendingAutoRollover)} style={{ background: 'var(--accent)', color: '#000', border: 'none', padding: '16px', width: '100%', borderRadius: '12px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer' }}>
-              Rollover into {getCurrentMonthStr()}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* HEADER */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ fontSize: '26px', fontWeight: 'bold', margin: 0, lineHeight: 1 }}>Bill Tracker</h1>
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-
-            <button onClick={handleLogout} title="Log Out" style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid var(--glass-border)', color: 'var(--danger)', padding: '6px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <LogOut size={18} />
-            </button>
-          </div>
-        </header>
-        <div
-          key={actionItemsDue > 0 ? 'due' : 'none'}
-          className={actionItemsDue > 0 ? 'action-items-pulse' : ''}
-          style={{ fontSize: '12px', color: actionItemsDue > 0 ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontWeight: 'bold', transform: 'translateZ(0)', WebkitTransform: 'translateZ(0)' }}
-          onClick={handleActionItemsClick}
-        >
-          {actionItemsDue > 0 ? `${actionItemsDue} bill${actionItemsDue > 1 ? 's' : ''} need${actionItemsDue > 1 ? '' : 's'} attention!` : 'No action items due! ✓'}
-        </div>
-
-      </div>
-
-      {/* SUMMARY WIDGETS */}
-      <div style={{ display: activeTab === 'active' ? 'grid' : 'none', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-          {/* Total Available Cash */}
-          <div className="glass-card" style={{ padding: '20px', minHeight: '130px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <div
-              onClick={() => setSummaryExpanded(!summaryExpanded)}
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px' }}
-            >
-              <span>Financial Overview</span>
-              {summaryExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </div>
-
-            {summaryExpanded ? (
-              <div>
-                <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Starting Funds</div>
-                <div style={{ paddingLeft: '12px', display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid var(--glass-border)', paddingBottom: '12px', marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>Savings Account Balance</span>
-                    {editingField === 'savings' ? (
-                      <input
-                        type="number"
-                        value={editingValue}
-                        onChange={e => setEditingValue(e.target.value)}
-                        onBlur={saveSettingsField}
-                        onKeyDown={e => { if (e.key === 'Enter') saveSettingsField(); }}
-                        autoFocus
-                        style={{ width: '120px', textAlign: 'right', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--accent)', padding: '4px 8px', borderRadius: '4px', color: '#fff', fontWeight: 'bold', outline: 'none' }}
-                      />
-                    ) : (
-                      <span onClick={() => startEditingField('savings')} style={{ fontWeight: 'bold', cursor: 'pointer', borderBottom: '1px dashed var(--text-muted)' }} title="Click to edit">
-                        {settings.savings.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>Monthly Income</span>
-                    {editingField === 'income' ? (
-                      <input
-                        type="number"
-                        value={editingValue}
-                        onChange={e => setEditingValue(e.target.value)}
-                        onBlur={saveSettingsField}
-                        onKeyDown={e => { if (e.key === 'Enter') saveSettingsField(); }}
-                        autoFocus
-                        style={{ width: '120px', textAlign: 'right', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--accent)', padding: '4px 8px', borderRadius: '4px', color: '#fff', fontWeight: 'bold', outline: 'none' }}
-                      />
-                    ) : (
-                      <span onClick={() => startEditingField('income')} style={{ fontWeight: 'bold', cursor: 'pointer', borderBottom: '1px dashed var(--text-muted)' }} title="Click to edit">
-                        {settings.income.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Minus Outflows</div>
-                <div style={{ paddingLeft: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--danger)' }}>
-                    <span>Bills This Month</span>
-                    <span style={{ fontWeight: 'bold' }}>-{dashboardData.summary.billsThisMonth.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
-                  </div>
-                  <div
-                    onClick={() => switchTab('cashLog')}
-                    style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--danger)', cursor: 'pointer', textDecoration: 'underline' }}
-                    title="Click to view Cash Log"
-                  >
-                    <span>Cash Withdrawn</span>
-                    <span style={{ fontWeight: 'bold' }}>-{dashboardData.summary.totalWithdrawn.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '16px', borderTop: '2px dashed var(--glass-border)' }}>
-                  <span style={{ fontSize: '16px', fontWeight: 'bold' }}>Total Available Cash</span>
-                  <span style={{ fontSize: '24px', fontWeight: '900', color: 'var(--success)', textShadow: '0 0 12px rgba(16,185,129,0.4)' }}>
-                    {netPosition.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '16px', fontWeight: 'bold' }}>Total Available Cash</span>
-                <span style={{ fontSize: '24px', fontWeight: '900', color: 'var(--success)', textShadow: '0 0 12px rgba(16,185,129,0.4)' }}>
-                  {netPosition.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Total Outflows / Month End */}
-          <div className="glass-card" style={{ padding: '20px', minHeight: '130px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <div
-              onClick={() => setSummaryExpanded(!summaryExpanded)}
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px' }}
-            >
-              <span>Month-End Summary</span>
-              {summaryExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </div>
-
-            {summaryExpanded ? (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid var(--glass-border)', paddingBottom: '8px' }}>
-                  <span>Bills This Month</span>
-                  <span style={{ fontWeight: 'bold' }}>{dashboardData.summary.billsThisMonth.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid var(--glass-border)', paddingBottom: '8px' }}>
-                  <span>Paid</span>
-                  <span style={{ fontWeight: 'bold', color: 'var(--success)' }}>{dashboardData.summary.paidThisMonth.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-                  <span>Remaining</span>
-                  <span style={{ fontWeight: 'bold', color: 'var(--warning)' }}>{remainingThisMonth.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
-                </div>
-
-                <div style={{ width: '100%', height: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ width: `${progressPercent}%`, height: '100%', background: 'var(--success)', transition: 'width 0.5s ease' }}></div>
-                </div>
-                <div style={{ textAlign: 'right', marginTop: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
-                  {dashboardData.summary.countPaid} / {dashboardData.summary.countTotal} Bills Paid
-                </div>
-
-                <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '2px dashed var(--glass-border)' }}>
-                  <button
-                    onClick={() => setShowCloseMonthModal(true)}
-                    style={{ width: '100%', background: 'transparent', border: '1px solid var(--success)', color: 'var(--success)', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}
-                    onMouseOver={e => { e.target.style.background = 'var(--success)'; e.target.style.color = '#0f172a'; }}
-                    onMouseOut={e => { e.target.style.background = 'transparent'; e.target.style.color = 'var(--success)'; }}
-                  >
-                    Close Month & Rollover
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '16px', fontWeight: 'bold' }}>Total Outflows</span>
-                <span style={{ fontSize: '24px', fontWeight: '900', color: 'var(--danger)' }}>
-                  -{totalOutflows.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Projected Available Cash */}
-          <div className="glass-card" style={{ padding: '20px', minHeight: '130px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>
-              Projected Available Cash
-            </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-              Based on {getMondaysUntilNextFifth()} remaining Monday(s) × ₱5,000 withdrawal before month-end.
-            </div>
-            <div style={{ fontSize: '24px', fontWeight: '900', color: 'var(--accent)', textAlign: 'right' }}>
-              {(() => {
-                const remainingMondays = getMondaysUntilNextFifth();
-                const projectedWithdrawals = remainingMondays * 5000;
-                const projectedCash = netPosition - projectedWithdrawals;
-                return projectedCash.toLocaleString('en-PH', { minimumFractionDigits: 2 });
-              })()}
-            </div>
-          </div>
-      </div>
-
-
-      {/* CONTROLS & TABS */}
-      <div className="desktop-tabs" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
-        <div style={{ display: 'flex', gap: '8px', background: 'var(--glass-bg)', padding: '6px', borderRadius: '14px', border: '1px solid var(--glass-border)', overflowX: 'auto' }}>
-          <TabButton active={activeTab === 'active'} onClick={() => switchTab('active')} badge={unpaidActiveCount}>
-            📅 Active
-          </TabButton>
-          <TabButton active={activeTab === 'incoming'} onClick={() => switchTab('incoming')}>
-            📥 Incoming
-          </TabButton>
-          <TabButton active={activeTab === 'previous'} onClick={() => switchTab('previous')}>
-            ⏳ Previous
-          </TabButton>
-          <TabButton active={activeTab === 'cashLog'} onClick={() => switchTab('cashLog')}>
-            📊 Cash Log
-          </TabButton>
-          <TabButton active={activeTab === 'subscriptions'} onClick={() => switchTab('subscriptions')}>
-            🔄 Subscriptions
-          </TabButton>
-        </div>
-
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="mobile-hidden" onClick={() => setIsWithdrawOpen(true)} style={{ background: 'transparent', border: '1px solid var(--danger)', color: 'var(--danger)', padding: '8px 16px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-            − Withdraw
-          </button>
-          <button onClick={() => setIsAddBillerOpen(true)} style={{ background: 'transparent', border: '1px solid var(--accent)', color: 'var(--accent)', padding: '8px 16px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-            + Add Biller
-          </button>
-          <button onClick={() => setIsRemoveBillerOpen(true)} style={{ background: 'transparent', border: '1px solid var(--text-muted)', color: 'var(--text-muted)', padding: '8px 16px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-            ✎ Remove Biller
-          </button>
-        </div>
-      </div>
-
-      {/* MAIN CONTENT AREA */}
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Loading dashboard...</div>
-      ) : (
-        <div>
-          <div style={{ display: activeTab === 'active' ? 'flex' : 'none', flexDirection: 'column', gap: '20px' }}>
-            
-            {dashboardData.earlyRolloverMonth && (
-              <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
-                <div
-                  onClick={() => setEarlyRolloverExpanded(!earlyRolloverExpanded)}
-                  style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontWeight: '600', fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                      {dashboardData.earlyRolloverMonth} -
-                      <span style={{ color: 'var(--danger)', fontWeight: '900', marginLeft: '4px' }}>
-                        {dashboardData.earlyRolloverBills.filter(b => b.status !== 'Paid').length} Unpaid Bill(s)
-                      </span>
-                    </span>
-                  </div>
-                  {earlyRolloverExpanded ? <ChevronUp size={16} color="var(--text-muted)" /> : <ChevronDown size={16} color="var(--text-muted)" />}
-                </div>
-
-                {earlyRolloverExpanded && (
-                  <div style={{ borderTop: '0.5px solid var(--border-color)' }}>
-                    <BillList
-                      bills={dashboardData.earlyRolloverBills}
-                      onScanRequest={() => setIsScanning(true)}
-                      onAmountUpdate={handleAmountUpdate}
-                      onMarkPaid={handleMarkAsPaid}
-                      urgencyMap={urgencyMap}
-                      scrollToBillId={scrollToBillId}
-                      onScrollComplete={() => setScrollToBillId(null)}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
-              <div
-                onClick={() => setCurrentMonthExpanded(!currentMonthExpanded)}
-                style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px' }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontWeight: '600', fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                    {dashboardData.appActiveMonth} -
-                    <span style={{ color: 'var(--danger)', fontWeight: '900', marginLeft: '4px' }}>
-                      {unpaidActiveCount} Unpaid Bill{unpaidActiveCount !== 1 ? 's' : ''}
-                    </span>
-                  </span>
-                </div>
-                {currentMonthExpanded ? <ChevronUp size={16} color="var(--text-muted)" /> : <ChevronDown size={16} color="var(--text-muted)" />}
-              </div>
-
-              {currentMonthExpanded && (
-                <div style={{ borderTop: '0.5px solid var(--border-color)' }}>
-                  <BillList
-                    bills={dashboardData.currentBills}
-                    onScanRequest={() => setIsScanning(true)}
-                    onAmountUpdate={handleAmountUpdate}
-                    onMarkPaid={handleMarkAsPaid}
-                    urgencyMap={urgencyMap}
-                    scrollToBillId={scrollToBillId}
-                    onScrollComplete={() => setScrollToBillId(null)}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div style={{ display: activeTab === 'due' ? 'block' : 'none' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
-                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold' }}>
-                  ▼ Upcoming Bills
-                </div>
-                {dashboardData.currentBills.filter(b => urgencyMap[b.id] && b.status !== 'Paid').length > 0 || dashboardData.subscriptions.filter(s => s.status === 'Active' && new Date(s.renewal_date).getTime() - new Date().getTime() <= 7 * 24 * 60 * 60 * 1000).length > 0 ? (
-                  <>
-                    {dashboardData.currentBills.filter(b => urgencyMap[b.id] && b.status !== 'Paid').length > 0 && (
-                      <BillList
-                        bills={dashboardData.currentBills.filter(b => urgencyMap[b.id] && b.status !== 'Paid')}
-                        onScanRequest={() => setIsScanning(true)}
-                        onAmountUpdate={handleAmountUpdate}
-                        onMarkPaid={handleMarkAsPaid}
-                        urgencyMap={urgencyMap}
-                        scrollToBillId={scrollToBillId}
-                        onScrollComplete={() => setScrollToBillId(null)}
-                      />
-                    )}
-                    {dashboardData.subscriptions.filter(s => s.status === 'Active' && new Date(s.renewal_date).getTime() - new Date().getTime() <= 7 * 24 * 60 * 60 * 1000).length > 0 && (
-                      <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px' }}>
-                        <SubscriptionList
-                          subscriptions={dashboardData.subscriptions.filter(s => s.status === 'Active' && new Date(s.renewal_date).getTime() - new Date().getTime() <= 7 * 24 * 60 * 60 * 1000)}
-                          onIgnoreRenew={handleIgnoreRenew}
-                          onCancelSub={handleCancelSub}
-                        />
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--success)' }}>
-                    <span style={{ fontSize: '32px' }}>🎉</span><br /><br />
-                    <strong style={{ fontSize: '18px' }}>No upcoming bills or subscriptions!</strong>
-                  </div>
-                )}
-              </div>
-
-              <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
-                <div
-                  onClick={() => setIsSubsExpanded(!isSubsExpanded)}
-                  style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-                >
-                  <span>{isSubsExpanded ? '▼' : '▶'} Subscriptions</span>
-                  <button onClick={(e) => { e.stopPropagation(); setIsAddSubOpen(true); }} style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Plus size={14} /> Add
-                  </button>
-                </div>
-                {isSubsExpanded && (
-                  <SubscriptionList
-                    subscriptions={dashboardData.subscriptions}
-                    onIgnoreRenew={handleIgnoreRenew}
-                    onCancelSub={handleCancelSub}
-                  />
-                )}
-              </div>
-
-              {Object.keys(dashboardData.historyMonths || {}).length > 0 && (
-                <div>
-                  <h3 style={{ margin: '0 0 12px 4px', fontSize: '18px', color: 'var(--text-muted)' }}>Previous Bills</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {sortMonthsDescending(Object.keys(dashboardData.historyMonths)).map(month => {
-                      const isExpanded = expandedPreviousMonth === month;
-                      const totalPaid = dashboardData.historyMonths[month].reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
-                      const formattedTotal = totalPaid.toLocaleString('en-PH', { minimumFractionDigits: 2 });
-                      return (
-                        <div key={month} className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
-                          <div
-                            onClick={() => setExpandedPreviousMonth(isExpanded ? null : month)}
-                            style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }}
-                          >
-                            <span>{isExpanded ? '▼' : '▶'} {month}</span>
-                            <span style={{ color: 'var(--text-muted)' }}>Paid ₱{formattedTotal}</span>
-                          </div>
-                          {isExpanded && <BillList bills={dashboardData.historyMonths[month]} onAmountUpdate={handleAmountUpdate} onMarkPaid={handleMarkAsPaid} isHistory={true} />}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-          <div style={{ display: activeTab === 'incoming' ? 'block' : 'none' }}>
-            <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-              {dashboardData.upcomingMonth ? (
-                <div className="glass-card" style={{ padding: '0', overflow: 'hidden', fontStyle: 'normal', textAlign: 'left' }}>
-                  <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold' }}>
-                    ▼ {dashboardData.upcomingMonth} (Upcoming)
-                  </div>
-                  <BillList bills={dashboardData.upcomingBills} onAmountUpdate={handleAmountUpdate} onMarkPaid={handleMarkAsPaid} />
-                </div>
-              ) : (
-                <p>No incoming bills generated for next month yet.<br />They will appear here automatically on the 15th.</p>
-              )}
-            </div>
-          </div>
-          
-          <div style={{ display: activeTab === 'previous' ? 'block' : 'none' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {sortMonthsDescending(Object.keys(dashboardData.historyMonths)).map(month => {
-                const isExpanded = expandedPreviousMonth === month;
-                const totalPaid = dashboardData.historyMonths[month].reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
-                const formattedTotal = totalPaid.toLocaleString('en-PH', { minimumFractionDigits: 2 });
-                return (
-                  <div key={month} className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
-                    <div
-                      onClick={() => setExpandedPreviousMonth(isExpanded ? null : month)}
-                      style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }}
-                    >
-                      <span>{isExpanded ? '▼' : '▶'} {month}</span>
-                      <span style={{ color: 'var(--text-muted)' }}>Paid ₱{formattedTotal}</span>
-                    </div>
-                    {isExpanded && <BillList bills={dashboardData.historyMonths[month]} onAmountUpdate={handleAmountUpdate} onMarkPaid={handleMarkAsPaid} isHistory={true} />}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div style={{ display: activeTab === 'cashLog' ? 'block' : 'none' }}>
-            <CashLog withdrawals={dashboardData.recentWithdrawals} />
-          </div>
-
-          <div style={{ display: activeTab === 'subscriptions' ? 'block' : 'none' }}>
-            <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
-              <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>▼ Active Subscriptions</span>
-                <button onClick={() => setIsAddSubOpen(true)} style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Plus size={14} /> Add
-                </button>
-              </div>
-              <SubscriptionList
-                subscriptions={dashboardData.subscriptions}
-                onIgnoreRenew={handleIgnoreRenew}
-                onCancelSub={handleCancelSub}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isAddBillerOpen && <AddBillerModal onClose={() => setIsAddBillerOpen(false)} onBillerAdded={() => fetchDashboardData(true)} />}
-      {isRemoveBillerOpen && <RemoveBillerModal onClose={() => setIsRemoveBillerOpen(false)} onBillerRemoved={() => fetchDashboardData(true)} />}
-      {isWithdrawOpen && <WithdrawModal onClose={() => setIsWithdrawOpen(false)} onWithdraw={() => fetchDashboardData(true)} isEarlyRollover={!!dashboardData.earlyRolloverMonth} />}
-      {isAddSubOpen && <AddSubModal onClose={() => setIsAddSubOpen(false)} onSubAdded={() => fetchDashboardData(true)} />}
-
-      {isScanning && (
-        <OCRScanner
-          onClose={() => setIsScanning(false)}
-          onScanResult={(amount) => {
-            setIsScanning(false);
-            if (amount > 0) alert(`Scanned Amount: ₱${amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`);
-          }}
-        />
-      )}
-
-      {/* Close Month Modal */}
-      {showCloseMonthModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <div className="glass-card animate-fade-up" style={{ width: '100%', maxWidth: '420px', padding: '32px', textAlign: 'center' }}>
-            {isLastWeekOfMonth() ? (
-              <>
-                <h2 style={{ marginTop: 0, marginBottom: '16px', fontSize: '22px' }}>Close the Month?</h2>
-                <p style={{ color: 'var(--text-muted)', lineHeight: '1.6', margin: '0 0 24px' }}>
-                  This will lock in your Total Available Cash (<span style={{ color: 'var(--success)', fontWeight: 'bold' }}>₱{netPosition.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>) and roll it over into your Savings Account Balance for next month.
-                </p>
-                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-                  <button
-                    onClick={() => setShowCloseMonthModal(false)}
-                    style={{ flex: 1, background: 'rgba(255,255,255,0.1)', color: 'var(--text-main)', border: '1px solid var(--glass-border)', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={executeCloseMonth}
-                    style={{ flex: 1, background: 'var(--success)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}
-                  >
-                    Confirm
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <h2 style={{ marginTop: 0, marginBottom: '16px', fontSize: '22px' }}>Not Yet!</h2>
-                <p style={{ color: 'var(--text-muted)', lineHeight: '1.6', margin: '0 0 8px' }}>
-                  <span style={{ color: 'var(--warning)', fontWeight: 'bold', fontSize: '18px' }}>{getDaysUntilLastWeek()} day(s)</span> before you can close the Month End.
-                </p>
-                <p style={{ color: 'var(--text-muted)', lineHeight: '1.6', margin: '0 0 24px', fontSize: '13px' }}>
-                  This will lock in your Total Available Cash (<span style={{ color: 'var(--success)', fontWeight: 'bold' }}>₱{netPosition.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>) and roll it over into your Savings Account Balance for next month.
-                </p>
-                <button
-                  onClick={() => setShowCloseMonthModal(false)}
-                  style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-main)', border: '1px solid var(--glass-border)', padding: '10px 24px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}
-                >
-                  Got it
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Mobile Bottom Navigation */}
-      <div className="mobile-bottom-nav">
-        <button onClick={() => switchTab('active')} style={{ background: activeTab === 'active' ? 'rgba(255,255,255,0.15)' : 'none', border: 'none', color: activeTab === 'active' ? '#fff' : 'rgba(255,255,255,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', width: '48px', height: '44px', borderRadius: '22px', cursor: 'pointer', transition: 'all 0.2s' }}>
-          <Home size={24} strokeWidth={activeTab === 'active' ? 2.5 : 2} />
-        </button>
-        <button onClick={handleActionItemsClick} style={{ background: activeTab === 'due' ? 'rgba(255,255,255,0.15)' : 'none', border: 'none', color: activeTab === 'due' ? '#fff' : (actionItemsDue > 0 ? 'var(--warning)' : 'rgba(255,255,255,0.7)'), display: 'flex', justifyContent: 'center', alignItems: 'center', width: '48px', height: '44px', borderRadius: '22px', cursor: 'pointer', position: 'relative', transition: 'all 0.2s' }}>
-          <AlertCircle size={24} strokeWidth={activeTab === 'due' ? 2.5 : 2} />
-          {actionItemsDue > 0 && <span style={{ position: 'absolute', top: '2px', right: '2px', background: 'var(--danger)', color: '#fff', fontSize: '10px', fontWeight: 'bold', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid rgba(44,44,46,1)' }}>{actionItemsDue}</span>}
-        </button>
-        <button onClick={() => switchTab('cashLog')} style={{ background: activeTab === 'cashLog' ? 'rgba(255,255,255,0.15)' : 'none', border: 'none', color: activeTab === 'cashLog' ? '#fff' : 'rgba(255,255,255,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', width: '48px', height: '44px', borderRadius: '22px', cursor: 'pointer', transition: 'all 0.2s' }}>
-          <FileText size={24} strokeWidth={activeTab === 'cashLog' ? 2.5 : 2} />
-        </button>
-        <button onClick={() => setIsWithdrawOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--danger)', display: 'flex', justifyContent: 'center', alignItems: 'center', width: '48px', height: '44px', borderRadius: '22px', cursor: 'pointer', transition: 'all 0.2s' }}>
-          <MinusCircle size={24} strokeWidth={2.5} />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function TabButton({ children, active, onClick, badge }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        background: active ? 'rgba(10, 132, 255, 0.15)' : 'transparent',
-        color: active ? 'var(--accent)' : 'var(--text-muted)',
-        border: 'none',
-        padding: '8px 16px',
-        borderRadius: '10px',
-        fontWeight: 'bold',
-        fontSize: '14px',
-        cursor: 'pointer',
-        transition: 'all 0.2s ease',
-      }}
-    >
-      {children}
-      {badge > 0 && (
-        <span style={{
-          background: 'var(--danger)',
-          color: '#fff',
-          padding: '2px 6px',
-          borderRadius: '12px',
-          fontSize: '11px',
-          fontWeight: '900'
-        }}>
-          {badge}
-        </span>
-      )}
-    </button>
+    <IosDashboard
+      activeTab={activeTab}
+      switchTab={switchTab}
+      homeTab={homeTab}
+      setHomeTab={setHomeTab}
+      detailSheet={detailSheet}
+      setDetailSheet={setDetailSheet}
+      viewportRef={viewportRef}
+      trackRef={trackRef}
+      dashboardData={dashboardData}
+      settings={settings}
+      actionItemsDue={actionItemsDue}
+      firstDueBillId={firstDueBillId}
+      urgencyMap={urgencyMap}
+      scrollToBillId={scrollToBillId}
+      setScrollToBillId={setScrollToBillId}
+      currentMonthExpanded={currentMonthExpanded}
+      setCurrentMonthExpanded={setCurrentMonthExpanded}
+      earlyRolloverExpanded={earlyRolloverExpanded}
+      setEarlyRolloverExpanded={setEarlyRolloverExpanded}
+      expandedPreviousMonth={expandedPreviousMonth}
+      setExpandedPreviousMonth={setExpandedPreviousMonth}
+      editingField={editingField}
+      editingValue={editingValue}
+      setEditingValue={setEditingValue}
+      startEditingField={startEditingField}
+      saveSettingsField={saveSettingsField}
+      setIsAddBillerOpen={setIsAddBillerOpen}
+      setIsRemoveBillerOpen={setIsRemoveBillerOpen}
+      setIsWithdrawOpen={setIsWithdrawOpen}
+      setIsAddSubOpen={setIsAddSubOpen}
+      isAddBillerOpen={isAddBillerOpen}
+      isRemoveBillerOpen={isRemoveBillerOpen}
+      isWithdrawOpen={isWithdrawOpen}
+      isAddSubOpen={isAddSubOpen}
+      showCloseMonthModal={showCloseMonthModal}
+      setShowCloseMonthModal={setShowCloseMonthModal}
+      pendingAutoRollover={pendingAutoRollover}
+      executeCloseMonth={executeCloseMonth}
+      isLastWeekOfMonth={isLastWeekOfMonth}
+      getDaysUntilLastWeek={getDaysUntilLastWeek}
+      handleAmountUpdate={handleAmountUpdate}
+      handleMarkAsPaid={handleMarkAsPaid}
+      handleIgnoreRenew={handleIgnoreRenew}
+      handleCancelSub={handleCancelSub}
+      handleLogout={handleLogout}
+      fetchDashboardData={fetchDashboardData}
+      getDisplayName={getDisplayName}
+      loading={loading}
+      netPosition={netPosition}
+      totalOutflows={totalOutflows}
+      remainingThisMonth={remainingThisMonth}
+      progressPercent={progressPercent}
+      unpaidActiveCount={unpaidActiveCount}
+      remainingMondays={remainingMondays}
+    />
   );
 }

@@ -10,12 +10,19 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}']
       },
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
+        id: '/',
         name: 'Monthly Bill Tracker',
         short_name: 'Bill Tracker',
         description: 'Track your monthly bills efficiently.',
-        theme_color: '#0f172a',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        orientation: 'portrait-primary',
+        background_color: '#f2f2f7',
+        theme_color: '#f2f2f7',
+        categories: ['finance', 'productivity'],
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -25,7 +32,8 @@ export default defineConfig({
           {
             src: 'pwa-512x512.png',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any maskable'
           }
         ]
       }

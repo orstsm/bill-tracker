@@ -1,169 +1,173 @@
-import { useRef, useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
+
+const EASE_OUT = 'cubic-bezier(0.22, 1, 0.36, 1)';
 
 /**
- * useSwipeNav – Lightweight, production-quality swipe-to-navigate hook.
- *
- * Attaches to a ref'd container. Detects horizontal swipe gestures and
- * calls onSwipeLeft / onSwipeRight while respecting interactive elements,
- * vertical scrolling, system edge gestures, multi-touch, and open modals.
- *
- * @param {Object}   opts
- * @param {Function} opts.onSwipeLeft   – called when user swipes left (go next)
- * @param {Function} opts.onSwipeRight  – called when user swipes right (go prev)
- * @param {boolean}  opts.disabled      – disable all gesture handling (e.g. modal open)
+ * Direct-manipulation page navigation. The rail follows the user's finger,
+ * then settles using both drag distance and terminal velocity.
  */
-export default function useSwipeNav({ onSwipeLeft, onSwipeRight, disabled = false }) {
-  const containerRef = useRef(null);
-
-  // Gesture state persisted across events via refs (no re-renders)
-  const state = useRef({
-    tracking: false,       // are we actively tracking a potential swipe?
-    decided: false,        // have we decided this is a swipe vs scroll?
-    isSwipe: false,        // true = horizontal swipe, false = vertical scroll
+export default function useSwipeNav({ activeIndex, count, onIndexChange, disabled = false }) {
+  const viewportRef = useRef(null);
+  const trackRef = useRef(null);
+  const indexRef = useRef(activeIndex);
+  const stateRef = useRef({
+    tracking: false,
+    decided: false,
+    horizontal: false,
+    pointerId: null,
     startX: 0,
     startY: 0,
-    startTime: 0,
     lastX: 0,
-    suppressClick: false,  // prevent accidental tap after swipe
+    lastTime: 0,
+    velocityX: 0,
+    dragX: 0,
+    suppressClick: false,
   });
 
-  // ── Helpers ──────────────────────────────────────────────────────────
-
-  /** Returns true if the touch started on an interactive element we should ignore */
-  const isInteractive = useCallback((el) => {
-    while (el && el !== containerRef.current) {
-      const tag = el.tagName;
-      // Skip inputs, buttons, links, selects, textareas
-      if (tag === 'INPUT' || tag === 'BUTTON' || tag === 'A' ||
-          tag === 'SELECT' || tag === 'TEXTAREA') return true;
-      // Skip anything with explicit horizontal scroll
-      if (el.scrollWidth > el.clientWidth + 2 && 
-          getComputedStyle(el).overflowX !== 'hidden' &&
-          getComputedStyle(el).overflowX !== 'visible') return true;
-      // Skip elements marked as non-swipeable
-      if (el.dataset?.noSwipe) return true;
-      el = el.parentElement;
-    }
-    return false;
+  const placeTrack = useCallback((index, dragX = 0, animate = true) => {
+    const viewport = viewportRef.current;
+    const track = trackRef.current;
+    if (!viewport || !track) return;
+    const width = viewport.clientWidth;
+    track.style.transition = animate ? `transform 300ms ${EASE_OUT}` : 'none';
+    track.style.transform = `translate3d(${(-index * width) + dragX}px, 0, 0)`;
   }, []);
-
-  // ── Touch Handlers ──────────────────────────────────────────────────
-
-  const onTouchStart = useCallback((e) => {
-    if (disabled) return;
-    // Ignore multi-touch
-    if (e.touches.length > 1) { state.current.tracking = false; return; }
-
-    const touch = e.touches[0];
-    const x = touch.clientX;
-    const screenW = window.innerWidth;
-
-    // Ignore gestures starting within 20px of screen edges (system gestures)
-    if (x < 20 || x > screenW - 20) return;
-
-    // Ignore if starting on an interactive element
-    if (isInteractive(e.target)) return;
-
-    state.current = {
-      tracking: true,
-      decided: false,
-      isSwipe: false,
-      startX: x,
-      startY: touch.clientY,
-      startTime: Date.now(),
-      lastX: x,
-      suppressClick: false,
-    };
-  }, [disabled, isInteractive]);
-
-  const onTouchMove = useCallback((e) => {
-    const s = state.current;
-    if (!s.tracking) return;
-
-    // Cancel on multi-touch
-    if (e.touches.length > 1) { s.tracking = false; return; }
-
-    const touch = e.touches[0];
-    const dx = touch.clientX - s.startX;
-    const dy = touch.clientY - s.startY;
-    const absDx = Math.abs(dx);
-    const absDy = Math.abs(dy);
-
-    s.lastX = touch.clientX;
-
-    // Decision phase: after ~12px of movement, decide intent
-    if (!s.decided && (absDx > 12 || absDy > 12)) {
-      s.decided = true;
-      // Horizontal intent: dx must be clearly dominant
-      s.isSwipe = absDx > absDy * 1.2;
-    }
-
-    // If we decided this is NOT a swipe, stop tracking entirely
-    if (s.decided && !s.isSwipe) {
-      s.tracking = false;
-      return;
-    }
-  }, []);
-
-  const onTouchEnd = useCallback((e) => {
-    const s = state.current;
-    if (!s.tracking) return;
-    s.tracking = false;
-
-    // Only act if we decided this was a swipe
-    if (!s.decided || !s.isSwipe) return;
-
-    const dx = e.changedTouches[0].clientX - s.startX;
-    const absDx = Math.abs(dx);
-    const elapsed = Date.now() - s.startTime;
-
-    // Velocity-based: fast flick (>0.4px/ms) with at least 30px
-    const velocity = absDx / Math.max(elapsed, 1);
-    const isFlick = velocity > 0.4 && absDx > 30;
-
-    // Distance-based: slower swipe needs at least 60px
-    const isLongSwipe = absDx > 60;
-
-    if (isFlick || isLongSwipe) {
-      // Suppress the next click so we don't accidentally activate a card
-      s.suppressClick = true;
-      setTimeout(() => { s.suppressClick = false; }, 300);
-
-      if (dx < 0) {
-        onSwipeLeft?.();
-      } else {
-        onSwipeRight?.();
-      }
-    }
-  }, [onSwipeLeft, onSwipeRight]);
-
-  // ── Click suppression ───────────────────────────────────────────────
-
-  const onClickCapture = useCallback((e) => {
-    if (state.current.suppressClick) {
-      e.stopPropagation();
-      e.preventDefault();
-    }
-  }, []);
-
-  // ── Attach handlers via useEffect ───────────────────────────────────
 
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+    indexRef.current = activeIndex;
+    placeTrack(activeIndex, 0, true);
+  }, [activeIndex, placeTrack]);
 
-    el.addEventListener('touchstart', onTouchStart, { passive: true });
-    el.addEventListener('touchmove', onTouchMove, { passive: true });
-    el.addEventListener('touchend', onTouchEnd, { passive: true });
-    el.addEventListener('click', onClickCapture, { capture: true });
+  useEffect(() => {
+    const handleResize = () => placeTrack(indexRef.current, 0, false);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [placeTrack]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const isInteractive = (element) => {
+      if (!(element instanceof Element)) return false;
+      return Boolean(element.closest('button, a, input, select, textarea, [data-no-swipe], [role="button"]'));
+    };
+
+    const reset = () => {
+      stateRef.current.tracking = false;
+      stateRef.current.decided = false;
+      stateRef.current.horizontal = false;
+      stateRef.current.pointerId = null;
+      stateRef.current.dragX = 0;
+    };
+
+    const onPointerDown = (event) => {
+      if (disabled || !event.isPrimary || isInteractive(event.target)) return;
+      if (event.clientX < 24 || event.clientX > window.innerWidth - 24) return;
+
+      const now = performance.now();
+      stateRef.current = {
+        tracking: true,
+        decided: false,
+        horizontal: false,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        lastX: event.clientX,
+        lastTime: now,
+        velocityX: 0,
+        dragX: 0,
+        suppressClick: false,
+      };
+      viewport.setPointerCapture?.(event.pointerId);
+    };
+
+    const onPointerMove = (event) => {
+      const state = stateRef.current;
+      if (!state.tracking || state.pointerId !== event.pointerId) return;
+
+      const dx = event.clientX - state.startX;
+      const dy = event.clientY - state.startY;
+      const absX = Math.abs(dx);
+      const absY = Math.abs(dy);
+
+      if (!state.decided && (absX > 7 || absY > 7)) {
+        state.decided = true;
+        state.horizontal = absX > absY * 1.12;
+        if (!state.horizontal) {
+          reset();
+          return;
+        }
+      }
+
+      if (!state.horizontal) return;
+      event.preventDefault();
+
+      const now = performance.now();
+      const elapsed = Math.max(now - state.lastTime, 1);
+      const instantVelocity = (event.clientX - state.lastX) / elapsed;
+      state.velocityX = (state.velocityX * 0.65) + (instantVelocity * 0.35);
+      state.lastX = event.clientX;
+      state.lastTime = now;
+
+      const atStart = indexRef.current === 0 && dx > 0;
+      const atEnd = indexRef.current === count - 1 && dx < 0;
+      state.dragX = atStart || atEnd ? dx * 0.24 : dx;
+      state.suppressClick = absX > 10;
+      placeTrack(indexRef.current, state.dragX, false);
+    };
+
+    const finishGesture = (event, cancelled = false) => {
+      const state = stateRef.current;
+      if (!state.tracking || state.pointerId !== event.pointerId) return;
+
+      let nextIndex = indexRef.current;
+      if (!cancelled && state.horizontal) {
+        const width = viewport.clientWidth;
+        const projectedX = state.dragX + (state.velocityX * 180);
+        const crossedDistance = Math.abs(state.dragX) > width * 0.22;
+        const fastFlick = Math.abs(state.velocityX) > 0.5;
+        if (crossedDistance || fastFlick) {
+          nextIndex += projectedX < 0 ? 1 : -1;
+          nextIndex = Math.max(0, Math.min(count - 1, nextIndex));
+        }
+      }
+
+      placeTrack(nextIndex, 0, true);
+      if (nextIndex !== indexRef.current) {
+        indexRef.current = nextIndex;
+        onIndexChange(nextIndex);
+      }
+      state.tracking = false;
+      state.pointerId = null;
+      state.dragX = 0;
+      window.setTimeout(() => { state.suppressClick = false; }, 320);
+    };
+
+    const onClickCapture = (event) => {
+      if (stateRef.current.suppressClick) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+
+    const onPointerUp = (event) => finishGesture(event, false);
+    const onPointerCancel = (event) => finishGesture(event, true);
+
+    viewport.addEventListener('pointerdown', onPointerDown);
+    viewport.addEventListener('pointermove', onPointerMove, { passive: false });
+    viewport.addEventListener('pointerup', onPointerUp);
+    viewport.addEventListener('pointercancel', onPointerCancel);
+    viewport.addEventListener('click', onClickCapture, true);
 
     return () => {
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchmove', onTouchMove);
-      el.removeEventListener('touchend', onTouchEnd);
-      el.removeEventListener('click', onClickCapture, { capture: true });
+      viewport.removeEventListener('pointerdown', onPointerDown);
+      viewport.removeEventListener('pointermove', onPointerMove);
+      viewport.removeEventListener('pointerup', onPointerUp);
+      viewport.removeEventListener('pointercancel', onPointerCancel);
+      viewport.removeEventListener('click', onClickCapture, true);
     };
-  }, [onTouchStart, onTouchMove, onTouchEnd, onClickCapture]);
+  }, [count, disabled, onIndexChange, placeTrack]);
 
-  return containerRef;
+  return { viewportRef, trackRef };
 }

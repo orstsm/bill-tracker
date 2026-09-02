@@ -1,4 +1,4 @@
-import { useAuth } from './context/AuthContext';
+import { useAuth } from './context/auth';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 
@@ -7,18 +7,14 @@ function App() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
-        <p>Loading...</p>
+      <div className="loading-screen" aria-label="Loading Bill Tracker">
+        <div className="loading-spinner" />
       </div>
     );
   }
 
   return (
-    <>
-      <div className="app-bg"></div>
-      <div className="app-bg-overlay"></div>
-      {user ? <Dashboard /> : <Login />}
-    </>
+    user ? <Dashboard /> : <Login />
   );
 }
 

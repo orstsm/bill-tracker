@@ -1,112 +1,123 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { Bar } from 'react-chartjs-2';
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
   BarElement,
-  Title,
+  CategoryScale,
+  Chart as ChartJS,
+  LinearScale,
   Tooltip,
-  Legend,
 } from 'chart.js';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { sortMonthsDescending } from '../lib/utils';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip);
+
+const money = (value) => `₱${Number(value || 0).toLocaleString('en-PH', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})}`;
 
 export default function CashLog({ withdrawals }) {
   const sortedMonths = sortMonthsDescending(Object.keys(withdrawals || {}));
   const [expandedMonth, setExpandedMonth] = useState(sortedMonths[0] || null);
-  const chartMonths = sortedMonths.slice(0, 6).reverse(); // Oldest to newest for the chart
-  
-  const chartData = {
-    labels: chartMonths,
-    datasets: [
-      {
-        label: 'Cash Withdrawn',
-        data: chartMonths.map(m => withdrawals[m].total),
-        backgroundColor: '#ef4444',
-        borderRadius: 4,
-      }
-    ]
-  };
+  const chartMonths = sortedMonths.slice(0, 6).reverse();
+  const isDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
 
-  const chartOptions = {
+  const chartData = useMemo(() => ({
+    labels: chartMonths.map((month) => month.replace(/\s\d{4}$/, '')),
+    datasets: [{
+      data: chartMonths.map((month) => withdrawals[month].total),
+      backgroundColor: isDark ? '#42d39b' : '#07966a',
+      borderRadius: 7,
+      borderSkipped: false,
+      maxBarThickness: 46,
+    }],
+  }), [chartMonths, withdrawals, isDark]);
+
+  const chartOptions = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
+    animation: { duration: 450, easing: 'easeOutQuart' },
     plugins: {
       legend: { display: false },
-      title: {
-        display: true,
-        text: '6-Month Cash Trend',
-        color: '#f8fafc',
-        align: 'start',
-        font: { size: 14 }
-      }
+      tooltip: {
+        displayColors: false,
+        callbacks: { label: (context) => money(context.raw) },
+      },
     },
     scales: {
       y: {
-        grid: { color: 'rgba(255,255,255,0.1)' },
-        ticks: { color: '#ffffff' }
+        beginAtZero: true,
+        grid: { color: isDark ? 'rgba(255,255,255,.10)' : 'rgba(60,60,67,.12)' },
+        border: { display: false },
+        ticks: {
+          color: isDark ? '#a2a2a8' : '#6c6c70',
+          font: { family: '-apple-system, BlinkMacSystemFont, sans-serif', size: 11 },
+          callback: (value) => value >= 1000 ? `${value / 1000}k` : value,
+        },
       },
       x: {
         grid: { display: false },
-        ticks: { color: '#ffffff' }
-      }
-    }
-  };
+        border: { display: false },
+        ticks: {
+          color: isDark ? '#a2a2a8' : '#6c6c70',
+          font: { family: '-apple-system, BlinkMacSystemFont, sans-serif', size: 11 },
+          maxRotation: 0,
+        },
+      },
+    },
+  }), [isDark]);
+
+  if (!sortedMonths.length) {
+    return (
+      <div className="surface empty-state">
+        <strong>No withdrawals yet</strong>
+        <span>Cash withdrawals you log will appear here.</span>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', alignItems: 'start' }}>
-      
-      {/* Left side: Accordions */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {sortedMonths.length === 0 ? (
-          <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', padding: '20px' }}>No cash withdrawals recorded.</div>
-        ) : (
-          sortedMonths.map(month => (
-            <div key={month} className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
-              <div 
-                onClick={() => setExpandedMonth(expandedMonth === month ? null : month)}
-                style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', cursor: 'pointer' }}
-              >
-                <span>{expandedMonth === month ? '▼' : '▶'} {month}</span>
-                <span style={{ color: 'var(--danger)' }}>
-                  ₱{withdrawals[month].total.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-              {expandedMonth === month && (
-                <div style={{ padding: '16px' }}>
-                  {withdrawals[month].logs.map((log, idx) => {
-                    const dateStr = log.date ? new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-                    return (
-                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: idx !== withdrawals[month].logs.length - 1 ? '1px dashed var(--glass-border)' : 'none' }}>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '13px', width: '60px' }}>{dateStr}</span>
-                        <span style={{ fontWeight: 'bold', flex: 1 }}>{log.reason}</span>
-                        <span style={{ color: 'var(--danger)', fontWeight: 'bold' }}>
-                          ₱{Number(log.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+    <div className="content-stack">
+      <section>
+        <div className="section-heading"><h2>6-month cash trend</h2></div>
+        <div className="surface" style={{ height: 260, padding: '18px 12px 12px' }}>
+          <Bar data={chartData} options={chartOptions} />
+        </div>
+      </section>
+
+      <section className="section-gap">
+        <div className="section-heading"><h2>Withdrawals</h2></div>
+        <div className="content-stack">
+          {sortedMonths.map((month) => {
+            const expanded = expandedMonth === month;
+            return (
+              <div className="surface" key={month}>
+                <button className="accordion-header" type="button" onClick={() => setExpandedMonth(expanded ? null : month)} aria-expanded={expanded} data-no-swipe>
+                  <span className="accordion-title">{month}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span className="accordion-meta">{money(withdrawals[month].total)}</span>
+                    {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                  </span>
+                </button>
+                {expanded && (
+                  <div className="accordion-content">
+                    {withdrawals[month].logs.map((log, index) => (
+                      <div className="settings-row" key={log.id || `${log.date}-${index}`}>
+                        <span>
+                          <strong style={{ fontSize: 15 }}>{log.reason}</strong><br />
+                          <span className="accordion-meta">{log.date ? new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date'}</span>
                         </span>
+                        <strong style={{ color: 'var(--danger)', fontVariantNumeric: 'tabular-nums' }}>−{money(log.amount)}</strong>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* Right side: Chart */}
-      <div className="glass-card" style={{ padding: '20px', height: '400px' }}>
-        <Bar data={chartData} options={chartOptions} />
-      </div>
-
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }

@@ -1,68 +1,61 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
+const money = (value) => `₱${Number(value || 0).toLocaleString('en-PH', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})}`;
+
 export default function SubscriptionList({ subscriptions, onIgnoreRenew, onCancelSub }) {
   const [expandedId, setExpandedId] = useState(null);
   const [processingId, setProcessingId] = useState(null);
 
-  if (!subscriptions || subscriptions.length === 0) {
+  if (!subscriptions?.length) {
     return (
-      <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
-        <p>No active subscriptions found.</p>
+      <div className="empty-state">
+        <strong>No subscriptions</strong>
+        <span>Add a service to track its next renewal.</span>
       </div>
     );
   }
 
-  const handleAction = async (actionFn, sub) => {
-    setProcessingId(sub.id);
-    await actionFn(sub);
+  const handleAction = async (action, subscription) => {
+    setProcessingId(subscription.id);
+    await action(subscription);
     setProcessingId(null);
   };
 
-  const toggleExpand = (id) => {
-    setExpandedId(prev => prev === id ? null : id);
-  };
-
   return (
-    <>
-      {/* Desktop View */}
-      <div className="desktop-only" style={{ overflowX: 'auto', background: 'var(--card-bg)', borderRadius: '16px', border: '1px solid var(--border)', padding: '10px' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '700px' }}>
+    <div>
+      <div className="desktop-only" style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680, textAlign: 'left' }}>
           <thead>
-            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-              <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '13px', fontWeight: 'bold' }}>Name</th>
-              <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '13px', fontWeight: 'bold' }}>Amount</th>
-              <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '13px', fontWeight: 'bold' }}>Next Renewal Date</th>
-              <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '13px', fontWeight: 'bold' }}>Cycle</th>
-              <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '13px', fontWeight: 'bold' }}>Status</th>
-              <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '13px', fontWeight: 'bold' }}>Action</th>
+            <tr style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+              <th style={{ padding: 16 }}>Name</th>
+              <th style={{ padding: 16 }}>Amount</th>
+              <th style={{ padding: 16 }}>Renewal</th>
+              <th style={{ padding: 16 }}>Cycle</th>
+              <th style={{ padding: 16 }}>Status</th>
+              <th style={{ padding: 16 }}>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {subscriptions.map(sub => {
-              const isRenewingSoon = new Date(sub.renewal_date).getTime() - new Date().getTime() <= 5 * 24 * 60 * 60 * 1000;
-              const formattedDate = new Date(sub.renewal_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-              const isProcessing = processingId === sub.id;
-
+            {subscriptions.map((subscription) => {
+              const soon = new Date(subscription.renewal_date).getTime() - Date.now() <= 5 * 24 * 60 * 60 * 1000;
+              const processing = processingId === subscription.id;
               return (
-                <tr key={sub.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: isRenewingSoon ? 'rgba(239, 68, 68, 0.05)' : 'transparent' }}>
-                  <td style={{ padding: '16px', fontWeight: 'bold', color: '#fff' }}>{sub.name}</td>
-                  <td style={{ padding: '16px', color: 'var(--danger)' }}>{parseFloat(sub.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td style={{ padding: '16px', color: isRenewingSoon ? 'var(--danger)' : 'var(--text-muted)' }}>{formattedDate}</td>
-                  <td style={{ padding: '16px', color: 'var(--text-muted)' }}>{sub.cycle}</td>
-                  <td style={{ padding: '16px' }}>
-                    <span style={{ color: sub.status === 'Active' ? 'var(--success)' : 'var(--text-muted)', fontSize: '12px', fontWeight: 'bold', background: sub.status === 'Active' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '12px' }}>
-                      {sub.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: '16px' }}>
-                    {sub.status === 'Active' ? (
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button disabled={isProcessing} onClick={() => handleAction(onIgnoreRenew, sub)} style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', opacity: isProcessing ? 0.5 : 1 }}>Ignore / Renew</button>
-                        <button disabled={isProcessing} onClick={() => handleAction(onCancelSub, sub)} style={{ background: 'var(--danger)', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', opacity: isProcessing ? 0.5 : 1 }}>Cancel Sub</button>
+                <tr key={subscription.id} style={{ borderTop: '1px solid var(--separator)' }}>
+                  <td style={{ padding: 16, fontWeight: 650 }}>{subscription.name}</td>
+                  <td style={{ padding: 16 }}>{money(subscription.amount)}</td>
+                  <td style={{ padding: 16, color: soon ? 'var(--warning)' : 'var(--text-muted)' }}>{new Date(subscription.renewal_date).toLocaleDateString()}</td>
+                  <td style={{ padding: 16, color: 'var(--text-muted)' }}>{subscription.cycle}</td>
+                  <td style={{ padding: 16, color: subscription.status === 'Active' ? 'var(--success)' : 'var(--text-muted)' }}>{subscription.status}</td>
+                  <td style={{ padding: 16 }}>
+                    {subscription.status === 'Active' && (
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="action-button secondary" type="button" disabled={processing} onClick={() => handleAction(onIgnoreRenew, subscription)}>Renew</button>
+                        <button className="action-button danger" type="button" disabled={processing} onClick={() => handleAction(onCancelSub, subscription)}>Cancel</button>
                       </div>
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)' }}>—</span>
                     )}
                   </td>
                 </tr>
@@ -72,55 +65,49 @@ export default function SubscriptionList({ subscriptions, onIgnoreRenew, onCance
         </table>
       </div>
 
-      {/* Mobile View */}
-      <div className="mobile-only glass-card" style={{ padding: 0 }}>
-        {subscriptions.map(sub => {
-          const isRenewingSoon = new Date(sub.renewal_date).getTime() - new Date().getTime() <= 5 * 24 * 60 * 60 * 1000;
-          const formattedDate = new Date(sub.renewal_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-          const isExpanded = expandedId === sub.id;
-          const isProcessing = processingId === sub.id;
-
+      <div className="mobile-only">
+        {subscriptions.map((subscription) => {
+          const soon = new Date(subscription.renewal_date).getTime() - Date.now() <= 5 * 24 * 60 * 60 * 1000;
+          const expanded = expandedId === subscription.id;
+          const processing = processingId === subscription.id;
+          const formattedDate = new Date(subscription.renewal_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
           return (
-            <div key={sub.id} style={{ padding: '16px', background: isRenewingSoon ? 'rgba(239, 68, 68, 0.05)' : 'transparent', borderBottom: '0.5px solid var(--border-color)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }} onClick={() => toggleExpand(sub.id)}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '16px', fontWeight: '600', color: '#fff' }}>{sub.name}</span>
-                  <span style={{ fontSize: '13px', color: isRenewingSoon ? 'var(--danger)' : 'var(--text-muted)', fontWeight: '500' }}>
-                    Renews: {formattedDate} ({sub.cycle})
-                  </span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '16px', fontWeight: '500', color: 'var(--danger)' }}>
-                    {parseFloat(sub.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                  {isExpanded ? <ChevronUp size={20} color="var(--text-muted)" /> : <ChevronDown size={20} color="var(--text-muted)" />}
-                </div>
-              </div>
-
-              {isExpanded && (
-                <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '0.5px solid var(--border-color)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '14px' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Status</span>
-                    <span style={{ color: sub.status === 'Active' ? 'var(--success)' : 'var(--text-muted)', fontWeight: 'bold' }}>{sub.status}</span>
+            <div key={subscription.id} style={{ padding: '0 16px', borderBottom: '1px solid var(--separator)', background: soon ? 'color-mix(in srgb, var(--warning) 7%, transparent)' : 'transparent' }}>
+              <button
+                type="button"
+                aria-expanded={expanded}
+                onClick={() => setExpandedId(expanded ? null : subscription.id)}
+                data-no-swipe
+                style={{ width: '100%', minHeight: 68, padding: '11px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, border: 0, background: 'transparent', color: 'var(--text-main)', textAlign: 'left' }}
+              >
+                <span>
+                  <strong style={{ fontSize: 16 }}>{subscription.name}</strong><br />
+                  <span style={{ color: soon ? 'var(--warning)' : 'var(--text-muted)', fontSize: 12 }}>Renews {formattedDate} · {subscription.cycle}</span>
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <strong style={{ fontSize: 15, fontVariantNumeric: 'tabular-nums' }}>{money(subscription.amount)}</strong>
+                  {expanded ? <ChevronUp size={17} /> : <ChevronDown size={17} />}
+                </span>
+              </button>
+              {expanded && (
+                <div style={{ padding: '12px 0 16px', borderTop: '1px solid var(--separator)' }}>
+                  <div className="detail-row" style={{ paddingLeft: 0, paddingRight: 0 }}>
+                    <span>Status</span>
+                    <strong style={{ color: subscription.status === 'Active' ? 'var(--success)' : 'var(--text-muted)' }}>{subscription.status}</strong>
                   </div>
-                  
-                  {sub.status === 'Active' && (
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                      <button disabled={isProcessing} onClick={() => handleAction(onIgnoreRenew, sub)} style={{ flex: 1, background: 'rgba(118, 118, 128, 0.24)', color: '#fff', border: 'none', padding: '12px', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', opacity: isProcessing ? 0.5 : 1 }}>
-                        Ignore / Renew
-                      </button>
-                      <button disabled={isProcessing} onClick={() => handleAction(onCancelSub, sub)} style={{ flex: 1, background: 'var(--accent)', color: '#fff', border: 'none', padding: '12px', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', opacity: isProcessing ? 0.5 : 1 }}>
-                        Cancel Sub
-                      </button>
+                  {subscription.status === 'Active' && (
+                    <div style={{ display: 'flex', gap: 9, marginTop: 12 }}>
+                      <button className="action-button secondary" style={{ flex: 1 }} type="button" disabled={processing} onClick={() => handleAction(onIgnoreRenew, subscription)}>Renew next cycle</button>
+                      <button className="action-button danger" style={{ flex: 1 }} type="button" disabled={processing} onClick={() => handleAction(onCancelSub, subscription)}>Cancel</button>
                     </div>
                   )}
-                  {isProcessing && <span style={{ display: 'block', marginTop: '8px', fontSize: '12px', color: '#3b82f6', fontWeight: 'bold', textAlign: 'center' }}>Processing...</span>}
+                  {processing && <p style={{ margin: '10px 0 0', color: 'var(--text-muted)', textAlign: 'center', fontSize: 12 }}>Updating…</p>}
                 </div>
               )}
             </div>
           );
         })}
       </div>
-    </>
+    </div>
   );
 }

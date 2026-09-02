@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { useCallback, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth';
 
 export default function RemoveBillerModal({ onClose, onBillerRemoved }) {
   const { user } = useAuth();
@@ -9,11 +8,7 @@ export default function RemoveBillerModal({ onClose, onBillerRemoved }) {
   const [loading, setLoading] = useState(true);
   const [removing, setRemoving] = useState(false);
 
-  useEffect(() => {
-    fetchBillers();
-  }, []);
-
-  const fetchBillers = async () => {
+  const fetchBillers = useCallback(async () => {
     try {
       const { data } = await supabase
         .from('recurring_bills')
@@ -26,7 +21,11 @@ export default function RemoveBillerModal({ onClose, onBillerRemoved }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user.id]);
+
+  useEffect(() => {
+    fetchBillers();
+  }, [fetchBillers]);
 
   const handleRemove = async (id) => {
     if (!confirm("Are you sure you want to remove this biller?")) return;
@@ -45,13 +44,14 @@ export default function RemoveBillerModal({ onClose, onBillerRemoved }) {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-      <div className="glass-card animate-fade" style={{ width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', background: 'var(--card-bg)', borderRadius: '16px', padding: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>Remove Biller</h2>
+    <div className="sheet-backdrop">
+      <section className="ios-sheet" role="dialog" aria-modal="true" aria-labelledby="remove-biller-title" data-no-swipe>
+        <div className="sheet-grabber" />
+        <div className="sheet-header">
+          <h2 id="remove-biller-title">Manage Billers</h2>
           <button 
             onClick={onClose}
-            style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: '16px', fontWeight: '500' }}
+            className="sheet-cancel"
           >
             Cancel
           </button>
@@ -64,12 +64,13 @@ export default function RemoveBillerModal({ onClose, onBillerRemoved }) {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
             {billers.map(b => (
-              <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'rgba(118, 118, 128, 0.24)', borderRadius: '12px' }}>
+              <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px', background: 'var(--input-bg)', borderRadius: '12px' }}>
                 <span style={{ fontWeight: '600', fontSize: '15px' }}>{b.biller}</span>
                 <button 
                   onClick={() => handleRemove(b.id)}
                   disabled={removing}
-                  style={{ background: 'var(--danger)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', opacity: removing ? 0.7 : 1 }}
+                  className="action-button danger"
+                  style={{ opacity: removing ? 0.7 : 1 }}
                 >
                   Remove
                 </button>
@@ -77,7 +78,7 @@ export default function RemoveBillerModal({ onClose, onBillerRemoved }) {
             ))}
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

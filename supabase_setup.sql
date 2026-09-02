@@ -62,3 +62,19 @@ CREATE POLICY "Users can manage their own bills" ON public.bills
 
 CREATE POLICY "Users can manage their own withdrawals" ON public.withdrawals
   FOR ALL USING (auth.uid() = user_id);
+
+-- 5. Create Subscriptions table
+CREATE TABLE IF NOT EXISTS public.subscriptions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  amount NUMERIC DEFAULT 0,
+  renewal_date TIMESTAMP WITH TIME ZONE,
+  cycle TEXT DEFAULT 'Monthly',
+  status TEXT DEFAULT 'Active',
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their own subscriptions" ON public.subscriptions
+  FOR ALL USING (auth.uid() = user_id);

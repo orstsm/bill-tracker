@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { supabase } from '../lib/supabase';
 import { Wallet } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -9,93 +9,54 @@ export default function Login() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleAuth = async (e) => {
-    e.preventDefault();
+  const handleAuth = async (event) => {
+    event.preventDefault();
     setLoading(true);
     setError(null);
-    
     try {
-      let result;
-      if (isSignUp) {
-        result = await supabase.auth.signUp({
-          email,
-          password,
-        });
-      } else {
-        result = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-      }
+      const result = isSignUp
+        ? await supabase.auth.signUp({ email, password })
+        : await supabase.auth.signInWithPassword({ email, password });
       if (result.error) throw result.error;
-    } catch (error) {
-      setError(error.message);
+    } catch (authError) {
+      setError(authError.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-      <div className="glass-card animate-fade-up" style={{ width: '100%', maxWidth: '400px' }}>
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <Wallet size={48} color="var(--accent)" style={{ marginBottom: '16px' }} />
-          <h2 style={{ fontSize: '24px', fontWeight: 'bold' }}>Monthly Bill Tracker</h2>
-          <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
-            {isSignUp ? 'Create an account to get started' : 'Sign in to manage your bills'}
-          </p>
+    <main style={{ minHeight: '100dvh', padding: 'max(28px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom))', display: 'grid', placeItems: 'center', background: 'var(--system-bg)' }}>
+      <section style={{ width: 'min(100%, 400px)' }}>
+        <div style={{ width: 64, height: 64, display: 'grid', placeItems: 'center', margin: '0 auto 22px', borderRadius: 20, background: 'var(--accent-soft)', color: 'var(--accent-strong)' }}>
+          <Wallet size={32} aria-hidden="true" />
         </div>
+        <header style={{ textAlign: 'center', marginBottom: 30 }}>
+          <h1 style={{ margin: 0, fontSize: 32, letterSpacing: '-1px' }}>Bill Tracker</h1>
+          <p style={{ margin: '8px 0 0', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+            {isSignUp ? 'Create your private finance workspace.' : 'Your bills, balances, and cash flow in one place.'}
+          </p>
+        </header>
 
-        <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {error && (
-            <div style={{ padding: '12px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', fontSize: '14px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-              {error}
-            </div>
-          )}
-          
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: 'var(--text-muted)' }}>Email</label>
-            <input 
-              type="email" 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none' }}
-              placeholder="you@example.com"
-            />
+        <form className="surface" onSubmit={handleAuth} style={{ padding: 18 }}>
+          {error && <div style={{ marginBottom: 16, padding: 12, borderRadius: 11, background: 'color-mix(in srgb, var(--danger) 11%, transparent)', color: 'var(--danger)', fontSize: 14 }}>{error}</div>}
+          <div style={{ marginBottom: 15 }}>
+            <label className="native-label" htmlFor="login-email">Email</label>
+            <input id="login-email" className="native-input" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required placeholder="you@example.com" />
           </div>
-          
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: 'var(--text-muted)' }}>Password</label>
-            <input 
-              type="password" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none' }}
-              placeholder="••••••••"
-            />
+          <div style={{ marginBottom: 18 }}>
+            <label className="native-label" htmlFor="login-password">Password</label>
+            <input id="login-password" className="native-input" type="password" autoComplete={isSignUp ? 'new-password' : 'current-password'} value={password} onChange={(event) => setPassword(event.target.value)} required placeholder="••••••••" />
           </div>
-          
-          <button 
-            type="submit" 
-            disabled={loading}
-            style={{ width: '100%', padding: '12px', borderRadius: '8px', border: 'none', background: 'var(--accent)', color: '#0f172a', fontWeight: 'bold', fontSize: '16px', marginTop: '8px', opacity: loading ? 0.7 : 1 }}
-          >
-            {loading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Sign In')}
+          <button className="primary-button" type="submit" disabled={loading} style={{ opacity: loading ? 0.65 : 1 }}>
+            {loading ? 'Please wait…' : isSignUp ? 'Create Account' : 'Sign In'}
           </button>
         </form>
 
-        <div style={{ textAlign: 'center', marginTop: '20px' }}>
-          <button 
-            type="button" 
-            onClick={() => setIsSignUp(!isSignUp)}
-            style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: '14px', textDecoration: 'underline' }}
-          >
-            {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
-          </button>
-        </div>
-      </div>
-    </div>
+        <button type="button" onClick={() => setIsSignUp(!isSignUp)} style={{ width: '100%', minHeight: 48, marginTop: 12, border: 0, background: 'transparent', color: 'var(--accent-strong)', fontSize: 14, fontWeight: 620 }}>
+          {isSignUp ? 'Already have an account? Sign In' : 'New here? Create an account'}
+        </button>
+      </section>
+    </main>
   );
 }
