@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/auth';
 import { withTimeout } from '../lib/utils';
+import SubscriptionPicker from './SubscriptionPicker';
 
 export default function AddSubModal({ onClose, onSubAdded }) {
   const { user } = useAuth();
@@ -61,10 +62,7 @@ export default function AddSubModal({ onClose, onSubAdded }) {
         </div>
         
         <form onSubmit={handleSubmit} className="sheet-body">
-          <div>
-            <label className="native-label">Subscription Name</label>
-            <input required type="text" className="native-input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Gemini, Netflix" />
-          </div>
+          <SubscriptionPicker value={name} onChange={setName} />
           
           <div>
             <label className="native-label">Amount</label>

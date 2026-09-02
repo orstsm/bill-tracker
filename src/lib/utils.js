@@ -85,3 +85,10 @@ export function getMondaysUntilNextFifth() {
 
   return count;
 }
+
+export function calculateProjectedCash(netPosition, remainingMondays, weeklyBudget = 5000) {
+  const available = Number(netPosition) || 0;
+  const mondays = Math.max(0, Number(remainingMondays) || 0);
+  const budget = Math.max(0, Number(weeklyBudget) || 0);
+  return available - (mondays * budget);
+}

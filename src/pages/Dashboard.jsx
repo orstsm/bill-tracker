@@ -27,12 +27,12 @@ export default function Dashboard() {
   const [pendingAutoRollover, setPendingAutoRollover] = useState(null);
 
   // Inline editing for settings
-  const [editingField, setEditingField] = useState(null); // 'income' or 'savings'
+  const [editingField, setEditingField] = useState(null); // 'income', 'savings', or 'weeklyBudget'
   const [editingValue, setEditingValue] = useState('');
 
   // Data states
   const [loading, setLoading] = useState(true);
-  const [settings, setSettings] = useState({ income: 0, savings: 0 });
+  const [settings, setSettings] = useState({ income: 0, savings: 0, weeklyBudget: 5000 });
   const [actionItemsDue, setActionItemsDue] = useState(0);
   const [urgencyMap, setUrgencyMap] = useState({}); // { billId: 'warn3' | 'warn7' }
   const [firstDueBillId, setFirstDueBillId] = useState(null);
@@ -125,7 +125,23 @@ export default function Dashboard() {
         rbData = cache.rbData || [];
       }
 
-      const stgs = { income: sData?.monthly_income || 0, savings: sData?.savings_account_balance || 0 };
+      const weeklyBudgetStorageKey = `weekly_budget:${user.id}`;
+      const cachedWeeklyBudget = Number(localStorage.getItem(weeklyBudgetStorageKey));
+      const hasDatabaseWeeklyBudget = sData?.weekly_budget !== null && sData?.weekly_budget !== undefined;
+      const databaseWeeklyBudget = hasDatabaseWeeklyBudget ? Number(sData.weekly_budget) : NaN;
+      const weeklyBudget = Number.isFinite(databaseWeeklyBudget)
+        ? databaseWeeklyBudget
+        : (Number.isFinite(cachedWeeklyBudget) && cachedWeeklyBudget >= 0 ? cachedWeeklyBudget : 5000);
+
+      if (Number.isFinite(databaseWeeklyBudget)) {
+        localStorage.setItem(weeklyBudgetStorageKey, String(databaseWeeklyBudget));
+      }
+
+      const stgs = {
+        income: sData?.monthly_income || 0,
+        savings: sData?.savings_account_balance || 0,
+        weeklyBudget,
+      };
       setSettings(stgs);
 
       const currentCalMonth = getCurrentMonthStr();
@@ -495,7 +511,11 @@ export default function Dashboard() {
   // Inline settings editing
   const startEditingField = (field) => {
     setEditingField(field);
-    setEditingValue(field === 'income' ? String(settings.income) : String(settings.savings));
+    setEditingValue(String({
+      income: settings.income,
+      savings: settings.savings,
+      weeklyBudget: settings.weeklyBudget,
+    }[field] ?? ''));
   };
 
   const saveSettingsField = async () => {
@@ -503,16 +523,41 @@ export default function Dashboard() {
     const numVal = parseFloat(editingValue.replace(/,/g, ''));
     if (isNaN(numVal)) { setEditingField(null); return; }
 
-    const col = editingField === 'income' ? 'monthly_income' : 'savings_account_balance';
+    if (numVal < 0) { setEditingField(null); return; }
+
+    const fieldConfig = {
+      income: { column: 'monthly_income', stateKey: 'income' },
+      savings: { column: 'savings_account_balance', stateKey: 'savings' },
+      weeklyBudget: { column: 'weekly_budget', stateKey: 'weeklyBudget' },
+    }[editingField];
+    if (!fieldConfig) { setEditingField(null); return; }
+
+    const fieldBeingSaved = editingField;
+    const { column, stateKey } = fieldConfig;
+
+    if (fieldBeingSaved === 'weeklyBudget') {
+      localStorage.setItem(`weekly_budget:${user.id}`, String(numVal));
+    }
+
     try {
       // Check if settings row exists
       const { data: existing } = await supabase.from('settings').select('id').eq('user_id', user.id).single();
+      let saveResult;
       if (existing) {
-        await supabase.from('settings').update({ [col]: numVal }).eq('user_id', user.id);
+        saveResult = await supabase.from('settings').update({ [column]: numVal }).eq('user_id', user.id);
       } else {
-        await supabase.from('settings').insert({ user_id: user.id, [col]: numVal });
+        saveResult = await supabase.from('settings').insert({ user_id: user.id, [column]: numVal });
       }
-      setSettings(prev => ({ ...prev, [editingField === 'income' ? 'income' : 'savings']: numVal }));
+
+      if (saveResult.error) {
+        if (fieldBeingSaved === 'weeklyBudget') {
+          console.warn('Weekly budget saved on this device. Apply the weekly_budget database migration to sync it across devices.', saveResult.error);
+        } else {
+          throw saveResult.error;
+        }
+      }
+
+      setSettings(prev => ({ ...prev, [stateKey]: numVal }));
     } catch (e) {
       console.error('Failed to save settings', e);
     }

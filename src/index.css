@@ -897,7 +897,11 @@ select:focus-visible {
 
 .sheet-backdrop {
   position: fixed;
-  inset: 0;
+  top: var(--visual-viewport-offset-top, 0px);
+  right: 0;
+  bottom: auto;
+  left: 0;
+  height: var(--visual-viewport-height, 100dvh);
   z-index: 9999;
   display: flex;
   align-items: flex-end;
@@ -911,8 +915,10 @@ select:focus-visible {
 
 .ios-sheet {
   width: min(100%, 520px);
-  max-height: min(88vh, 760px);
-  overflow-y: auto;
+  max-height: min(calc(var(--visual-viewport-height, 100dvh) - 26px), 760px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   padding: 8px 18px 24px;
   border-radius: 24px;
   background: var(--bg-card);
@@ -921,11 +927,38 @@ select:focus-visible {
   animation: sheet-up 330ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.sheet-grabber { width: 36px; height: 5px; margin: 0 auto 9px; border-radius: 3px; background: var(--separator); }
-.sheet-header { min-height: 48px; display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+.sheet-grabber { width: 36px; height: 5px; margin: 0 auto 9px; flex-shrink: 0; border-radius: 3px; background: var(--separator); }
+.sheet-header { min-height: 48px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
 .sheet-header h2 { margin: 0; font-size: 20px; letter-spacing: -.3px; }
 .sheet-cancel { min-height: 44px; padding: 8px 0 8px 12px; border: 0; background: transparent; color: var(--accent-strong); font-size: 15px; font-weight: 620; }
-.sheet-body { display: flex; flex-direction: column; gap: 16px; }
+.sheet-body {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 1px 2px max(4px, env(safe-area-inset-bottom));
+  scroll-padding-top: 8px;
+  scroll-padding-bottom: 28px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .sheet-backdrop {
+    padding: 8px 10px max(6px, env(safe-area-inset-bottom));
+  }
+
+  .ios-sheet {
+    max-height: calc(var(--visual-viewport-height, 100dvh) - 14px);
+    padding-bottom: 12px;
+  }
+
+  .biller-picker-results {
+    max-height: min(252px, max(138px, calc(var(--visual-viewport-height, 100dvh) - 260px)));
+  }
+}
 
 .detail-list { overflow: hidden; border-radius: 14px; background: var(--input-bg); }
 .detail-row { min-height: 50px; padding: 10px 13px; display: flex; justify-content: space-between; align-items: center; gap: 12px; border-bottom: 1px solid var(--separator); }

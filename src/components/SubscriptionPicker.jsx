@@ -1,25 +1,25 @@
 import { useState } from 'react';
 import { Check, Search } from 'lucide-react';
-import BillerLogo from './BillerLogo';
-import { findBiller, searchBillers } from '../data/billerCatalog';
+import SubscriptionLogo from './SubscriptionLogo';
+import { findSubscription, searchSubscriptions } from '../data/subscriptionCatalog';
 
-export default function BillerPicker({ value, onChange }) {
+export default function SubscriptionPicker({ value, onChange }) {
   const [query, setQuery] = useState(value || '');
-  const [selectedBiller, setSelectedBiller] = useState(() => findBiller(value));
+  const [selectedSubscription, setSelectedSubscription] = useState(() => findSubscription(value));
   const [isOpen, setIsOpen] = useState(false);
-  const results = searchBillers(query);
+  const results = searchSubscriptions(query);
 
-  const chooseBiller = (entry) => {
+  const chooseSubscription = (entry) => {
     setQuery(entry.name);
-    setSelectedBiller(entry);
+    setSelectedSubscription(entry);
     setIsOpen(false);
     onChange(entry.name);
   };
 
-  const chooseCustomBiller = () => {
+  const chooseCustomSubscription = () => {
     const customName = query.trim();
     if (!customName) return;
-    setSelectedBiller(null);
+    setSelectedSubscription(null);
     setIsOpen(false);
     onChange(customName);
   };
@@ -27,9 +27,15 @@ export default function BillerPicker({ value, onChange }) {
   const handleInput = (event) => {
     const nextQuery = event.target.value;
     setQuery(nextQuery);
-    setSelectedBiller(null);
+    setSelectedSubscription(null);
     setIsOpen(true);
     onChange(nextQuery);
+  };
+
+  const handleFocus = (event) => {
+    setIsOpen(true);
+    const input = event.currentTarget;
+    window.setTimeout(() => input.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 80);
   };
 
   const handleKeyDown = (event) => {
@@ -39,82 +45,71 @@ export default function BillerPicker({ value, onChange }) {
     }
     if (event.key === 'Enter' && isOpen && results.length > 0) {
       event.preventDefault();
-      chooseBiller(results[0]);
+      chooseSubscription(results[0]);
     }
-  };
-
-  const handleFocus = (event) => {
-    setIsOpen(true);
-    const input = event.currentTarget;
-    window.setTimeout(() => input.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 80);
   };
 
   return (
     <div>
-      <label className="native-label" htmlFor="biller-search">Choose Biller</label>
+      <label className="native-label" htmlFor="subscription-search">Choose Subscription</label>
       <div className="biller-picker">
         <Search className="biller-picker-search-icon" size={18} aria-hidden="true" />
         <input
-          id="biller-search"
+          id="subscription-search"
           required
           type="search"
           role="combobox"
           className="native-input biller-picker-input"
-          placeholder="Search cards, utilities, internet, insurance…"
+          placeholder="Search streaming, music, cloud, AI…"
           value={query}
           onChange={handleInput}
           onFocus={handleFocus}
           onKeyDown={handleKeyDown}
           aria-expanded={isOpen}
-          aria-controls="biller-picker-results"
+          aria-controls="subscription-picker-results"
           aria-autocomplete="list"
           autoComplete="off"
           spellCheck="false"
         />
 
         {isOpen && (
-          <div className="biller-picker-results" id="biller-picker-results" role="listbox">
+          <div className="biller-picker-results" id="subscription-picker-results" role="listbox">
             {results.length > 0 ? results.map((entry) => (
               <button
                 type="button"
                 role="option"
-                aria-selected={selectedBiller?.id === entry.id}
+                aria-selected={selectedSubscription?.id === entry.id}
                 className="biller-picker-option"
                 key={entry.id}
-                onClick={() => chooseBiller(entry)}
+                onClick={() => chooseSubscription(entry)}
                 data-no-swipe
               >
-                <BillerLogo biller={entry.name} size={38} />
+                <SubscriptionLogo subscription={entry.name} size={38} />
                 <span className="biller-picker-option-copy">
                   <strong>{entry.name}</strong>
                   <small>{entry.category}</small>
                 </span>
-                {selectedBiller?.id === entry.id && <Check size={18} aria-hidden="true" />}
+                {selectedSubscription?.id === entry.id && <Check size={18} aria-hidden="true" />}
               </button>
             )) : (
               <p className="biller-picker-empty">No catalog match</p>
             )}
 
-            {query.trim() && !findBiller(query) && (
-              <button
-                type="button"
-                className="biller-picker-custom"
-                onClick={chooseCustomBiller}
-                data-no-swipe
-              >
-                Use “{query.trim()}” as a custom biller
+            {query.trim() && !findSubscription(query) && (
+              <button type="button" className="biller-picker-custom" onClick={chooseCustomSubscription} data-no-swipe>
+                Use “{query.trim()}” as a custom subscription
               </button>
             )}
           </div>
         )}
       </div>
 
-      {selectedBiller && !isOpen && (
+      {selectedSubscription && !isOpen && (
         <div className="selected-biller-preview" aria-live="polite">
-          <BillerLogo biller={selectedBiller.name} size={34} />
+          <SubscriptionLogo subscription={selectedSubscription.name} size={34} />
           <span>
-            <strong>{selectedBiller.name}</strong>
-            <small>{selectedBiller.category} · Logo included</small>
+            <strong>{selectedSubscription.name}</strong>
+            <small>{selectedSubscription.category} · Logo included</small>
           </span>
           <Check size={18} aria-hidden="true" />
         </div>

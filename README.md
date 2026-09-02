@@ -1,6 +1,6 @@
 # Bill Tracker — iOS redesign
 
-A production-oriented React PWA for tracking monthly bills, withdrawals, subscriptions, and cash flow. This version keeps the original Supabase schema and financial calculations while replacing the mobile interface with an iOS-style app shell.
+A production-oriented React PWA for tracking monthly bills, withdrawals, subscriptions, and cash flow. This version preserves the original calculations, adds an editable weekly forecast setting, and presents the tracker in an iOS-style app shell.
 
 ## What changed
 
@@ -13,6 +13,8 @@ A production-oriented React PWA for tracking monthly bills, withdrawals, subscri
 - Safe-area support, reduced-motion support, accessible buttons, and scalable text
 - Standalone PWA configuration with valid app icons
 - Lazy-loaded cash-flow chart for a smaller initial bundle
+- Searchable Philippine biller and popular subscription catalogs with local, optimized logos
+- Keyboard-aware sheets that stay usable when the iPhone keyboard is open
 - Clean dependency security audit
 
 ## Financial behavior preserved
@@ -20,7 +22,7 @@ A production-oriented React PWA for tracking monthly bills, withdrawals, subscri
 - Available cash remains `monthly income + savings − bills − withdrawals`
 - Bills whose channel contains `CC` remain excluded from cash-outflow totals
 - Paid, final, recurring, and upcoming-bill behavior is unchanged
-- Projected cash still deducts ₱5,000 for every remaining Monday in the month
+- Projected cash deducts the editable weekly cash budget for every remaining Monday in the month (₱5,000 by default)
 - Offline withdrawal and bill-update queues remain enabled
 - Month-end rollover still closes unpaid bills, carries cash into savings, resets income, and records a rollover marker
 
@@ -32,7 +34,7 @@ A production-oriented React PWA for tracking monthly bills, withdrawals, subscri
 4. Run `npm run dev` for development.
 5. Run `npm run build` before deployment.
 
-The database can be initialized with `supabase_setup.sql`.
+The database can be initialized with `supabase_setup.sql`. For an existing database, run `migrate_weekly_budget.sql` once in the Supabase SQL editor so the weekly budget syncs across devices. Until that migration is applied, the app safely keeps the edited weekly budget on the current device.
 
 ## Deployment
 

@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import {
   AlertCircle,
   Banknote,
+  CalendarDays,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -21,7 +22,8 @@ import RemoveBillerModal from './RemoveBillerModal';
 import WithdrawModal from './WithdrawModal';
 import AddSubModal from './AddSubModal';
 import HeaderMascot from './HeaderMascot';
-import { sortMonthsDescending, parseDueDateLogic } from '../lib/utils';
+import { calculateProjectedCash, sortMonthsDescending, parseDueDateLogic } from '../lib/utils';
+import useVisualViewport from '../hooks/useVisualViewport';
 
 const CashLog = lazy(() => import('./CashLog'));
 
@@ -147,9 +149,9 @@ function PugMascot({ compact, unpaidCount, onOpenBills }) {
   );
 }
 
-function DetailSheet({ type, onClose, data, onViewBills }) {
+function DetailSheet({ type, onClose, data, onViewBills, onEditBudget }) {
   if (!type) return null;
-  const projected = data.netPosition - (data.remainingMondays * 5000);
+  const projected = calculateProjectedCash(data.netPosition, data.remainingMondays, data.settings.weeklyBudget);
   const content = {
     available: {
       title: 'Available Cash',
@@ -174,7 +176,7 @@ function DetailSheet({ type, onClose, data, onViewBills }) {
       rows: [
         ['Available now', money(data.netPosition)],
         ['Mondays remaining', String(data.remainingMondays)],
-        ['Planned per Monday', money(5000)],
+        ['Planned per Monday', money(data.settings.weeklyBudget)],
         ['Projected month-end', money(projected)],
       ],
     },
@@ -207,6 +209,9 @@ function DetailSheet({ type, onClose, data, onViewBills }) {
         {type === 'unpaid' && (
           <button className="primary-button" type="button" style={{ marginTop: 16 }} onClick={onViewBills}>View Bills</button>
         )}
+        {type === 'projected' && (
+          <button className="primary-button" type="button" style={{ marginTop: 16 }} onClick={onEditBudget}>Edit weekly budget</button>
+        )}
       </section>
     </div>
   );
@@ -237,6 +242,8 @@ function HistorySections({ historyMonths, expandedMonth, setExpandedMonth, onAmo
 }
 
 export default function IosDashboard(props) {
+  useVisualViewport();
+
   const {
     activeTab,
     switchTab,
@@ -296,7 +303,7 @@ export default function IosDashboard(props) {
     remainingMondays,
   } = props;
 
-  const projectedCash = netPosition - (remainingMondays * 5000);
+  const projectedCash = calculateProjectedCash(netPosition, remainingMondays, settings.weeklyBudget);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -348,6 +355,12 @@ export default function IosDashboard(props) {
     if (firstDueBillId) window.setTimeout(() => setScrollToBillId(firstDueBillId), 340);
   };
 
+  const editWeeklyBudget = () => {
+    setDetailSheet(null);
+    switchTab('settings');
+    window.setTimeout(() => startEditingField('weeklyBudget'), 180);
+  };
+
   return (
     <div className="app-shell">
       <div className="swipe-viewport" ref={viewportRef}>
@@ -382,7 +395,7 @@ export default function IosDashboard(props) {
               <div className="metric-grid">
                 <MetricCard label="Available cash" value={money(netPosition)} tone="positive" foot="Current balance" onClick={() => setDetailSheet('available')} />
                 <MetricCard label="Month outflows" value={money(totalOutflows)} tone="negative" foot="Bills + withdrawals" onClick={() => setDetailSheet('outflows')} />
-                <MetricCard label="Projected cash" value={money(projectedCash)} tone="warning" foot="Month-end estimate" onClick={() => setDetailSheet('projected')} />
+                <MetricCard label="Projected cash" value={money(projectedCash)} tone="warning" foot={`${money(settings.weeklyBudget)} every Monday`} onClick={() => setDetailSheet('projected')} />
                 <MetricCard label="Unpaid bills" value={String(unpaidActiveCount)} foot={`${money(remainingThisMonth)} remaining`} progress={progressPercent} onClick={() => setDetailSheet('unpaid')} />
               </div>
 
@@ -541,6 +554,29 @@ export default function IosDashboard(props) {
                 </div>
               </section>
               <section className="settings-group">
+                <p className="settings-caption">Cash forecast</p>
+                <div className="surface">
+                  <div className="settings-row">
+                    <span className="settings-label"><CalendarDays size={19} /> Weekly cash budget</span>
+                    {editingField === 'weeklyBudget' ? (
+                      <input
+                        className="native-input"
+                        aria-label="Weekly cash budget"
+                        style={{ width: 130, textAlign: 'right' }}
+                        inputMode="decimal"
+                        value={editingValue}
+                        onChange={(event) => setEditingValue(event.target.value)}
+                        onBlur={saveSettingsField}
+                        onKeyDown={(event) => event.key === 'Enter' && saveSettingsField()}
+                        autoFocus
+                      />
+                    ) : (
+                      <button className="settings-value" type="button" onClick={() => startEditingField('weeklyBudget')}>{money(settings.weeklyBudget)} ›</button>
+                    )}
+                  </div>
+                </div>
+              </section>
+              <section className="settings-group">
                 <p className="settings-caption">Month end</p>
                 <div className="surface">
                   <div className="settings-row">
@@ -584,6 +620,7 @@ export default function IosDashboard(props) {
         type={detailSheet}
         onClose={() => setDetailSheet(null)}
         onViewBills={viewBills}
+        onEditBudget={editWeeklyBudget}
         data={{
           settings,
           summary: dashboardData.summary,

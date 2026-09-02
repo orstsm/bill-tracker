@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import SubscriptionLogo from './SubscriptionLogo';
 
 const money = (value) => `₱${Number(value || 0).toLocaleString('en-PH', {
   minimumFractionDigits: 2,
@@ -45,7 +46,12 @@ export default function SubscriptionList({ subscriptions, onIgnoreRenew, onCance
               const processing = processingId === subscription.id;
               return (
                 <tr key={subscription.id} style={{ borderTop: '1px solid var(--separator)' }}>
-                  <td style={{ padding: 16, fontWeight: 650 }}>{subscription.name}</td>
+                  <td style={{ padding: 16, fontWeight: 650 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <SubscriptionLogo subscription={subscription.name} size={34} />
+                      {subscription.name}
+                    </span>
+                  </td>
                   <td style={{ padding: 16 }}>{money(subscription.amount)}</td>
                   <td style={{ padding: 16, color: soon ? 'var(--warning)' : 'var(--text-muted)' }}>{new Date(subscription.renewal_date).toLocaleDateString()}</td>
                   <td style={{ padding: 16, color: 'var(--text-muted)' }}>{subscription.cycle}</td>
@@ -80,9 +86,12 @@ export default function SubscriptionList({ subscriptions, onIgnoreRenew, onCance
                 data-no-swipe
                 style={{ width: '100%', minHeight: 68, padding: '11px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, border: 0, background: 'transparent', color: 'var(--text-main)', textAlign: 'left' }}
               >
-                <span>
-                  <strong style={{ fontSize: 16 }}>{subscription.name}</strong><br />
-                  <span style={{ color: soon ? 'var(--warning)' : 'var(--text-muted)', fontSize: 12 }}>Renews {formattedDate} · {subscription.cycle}</span>
+                <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <SubscriptionLogo subscription={subscription.name} size={38} />
+                  <span style={{ minWidth: 0 }}>
+                    <strong style={{ display: 'block', overflow: 'hidden', fontSize: 16, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subscription.name}</strong>
+                    <span style={{ color: soon ? 'var(--warning)' : 'var(--text-muted)', fontSize: 12 }}>Renews {formattedDate} · {subscription.cycle}</span>
+                  </span>
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                   <strong style={{ fontSize: 15, fontVariantNumeric: 'tabular-nums' }}>{money(subscription.amount)}</strong>

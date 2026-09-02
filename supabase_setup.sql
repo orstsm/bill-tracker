@@ -5,8 +5,12 @@ CREATE TABLE IF NOT EXISTS public.settings (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   monthly_income NUMERIC DEFAULT 0,
   savings_account_balance NUMERIC DEFAULT 0,
+  weekly_budget NUMERIC DEFAULT 5000,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE
 );
+
+ALTER TABLE public.settings
+  ADD COLUMN IF NOT EXISTS weekly_budget NUMERIC DEFAULT 5000;
 
 -- 2. Create Recurring Bills table
 CREATE TABLE IF NOT EXISTS public.recurring_bills (

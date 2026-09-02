@@ -11,12 +11,12 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         runtimeCaching: [
           {
-            urlPattern: /\/logos\/billers\/.*\.webp$/,
+            urlPattern: /\/logos\/(billers|subscriptions)\/.*\.webp$/,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'biller-logos-v1',
+              cacheName: 'service-logos-v2',
               expiration: {
-                maxEntries: 60,
+                maxEntries: 120,
                 maxAgeSeconds: 60 * 60 * 24 * 90,
               },
             },
