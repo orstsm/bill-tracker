@@ -20,6 +20,7 @@ import AddBillerModal from './AddBillerModal';
 import RemoveBillerModal from './RemoveBillerModal';
 import WithdrawModal from './WithdrawModal';
 import AddSubModal from './AddSubModal';
+import HeaderMascot from './HeaderMascot';
 import { sortMonthsDescending, parseDueDateLogic } from '../lib/utils';
 
 const CashLog = lazy(() => import('./CashLog'));
@@ -35,19 +36,6 @@ const money = (value) => `₱${Number(value || 0).toLocaleString('en-PH', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 })}`;
-
-function HeaderMascot() {
-  return (
-    <span className="header-mascot-inline" aria-hidden="true">
-      <span className="header-mascot-runner">
-        <picture>
-          <source media="(prefers-reduced-motion: reduce)" srcSet="/mascot/billy-running-v2-poster.png" />
-          <img src="/mascot/billy-running-v2.webp" alt="" draggable="false" />
-        </picture>
-      </span>
-    </span>
-  );
-}
 
 function PageHeader({ title, eyebrow, action, actionLabel = 'Add', mascot = false }) {
   return (
@@ -456,7 +444,7 @@ export default function IosDashboard(props) {
 
           <section className="app-page" aria-hidden={activeTab !== 'due'} inert={activeTab !== 'due' ? '' : undefined}>
             <div className="page-inner">
-              <PageHeader title="Bills" mascot action={() => setIsAddMenuOpen(true)} actionLabel="Quick actions" />
+              <PageHeader title="Bills" mascot={activeTab === 'due'} action={() => setIsAddMenuOpen(true)} actionLabel="Quick actions" />
               <div className="action-row" data-no-swipe>
                 <button className="action-button secondary" type="button" onClick={() => setIsRemoveBillerOpen(true)}><FileText size={17} /> Manage Billers</button>
                 <button className="action-button" type="button" onClick={() => setIsWithdrawOpen(true)}><MinusCircle size={17} /> Withdraw Cash</button>
@@ -511,7 +499,7 @@ export default function IosDashboard(props) {
 
           <section className="app-page" aria-hidden={activeTab !== 'cashLog'} inert={activeTab !== 'cashLog' ? '' : undefined}>
             <div className="page-inner">
-              <PageHeader title="Activity" mascot eyebrow="Cash flow and completed months" action={() => setIsWithdrawOpen(true)} actionLabel="Log a cash withdrawal" />
+              <PageHeader title="Activity" mascot={activeTab === 'cashLog'} eyebrow="Cash flow and completed months" action={() => setIsWithdrawOpen(true)} actionLabel="Log a cash withdrawal" />
               <Suspense fallback={<div className="surface empty-state"><div className="loading-spinner" aria-label="Loading activity" /></div>}>
                 <CashLog withdrawals={dashboardData.recentWithdrawals} />
               </Suspense>
@@ -530,7 +518,7 @@ export default function IosDashboard(props) {
 
           <section className="app-page" aria-hidden={activeTab !== 'settings'} inert={activeTab !== 'settings' ? '' : undefined}>
             <div className="page-inner">
-              <PageHeader title="Settings" mascot eyebrow="Account and monthly plan" />
+              <PageHeader title="Settings" mascot={activeTab === 'settings'} eyebrow="Account and monthly plan" />
               <section className="settings-group">
                 <p className="settings-caption">Starting funds</p>
                 <div className="surface">
