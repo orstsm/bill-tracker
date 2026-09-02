@@ -421,6 +421,21 @@ export default function Dashboard() {
           if (error) throw error;
           success = true;
           
+          // Check if this was the last unpaid bill
+          const unpaidRemaining = dashboardData.currentBills.filter(b => b.status !== 'Paid' && b.id !== billId);
+          if (unpaidRemaining.length === 0) {
+            const bill = dashboardData.currentBills.find(b => b.id === billId);
+            const newNet = netPosition - (bill && !(bill.channel || '').toUpperCase().includes('CC') ? Number(bill.amount) : 0);
+            
+            fetch('/api/telegram', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                message: `🎉 All <b>${dashboardData.appActiveMonth}</b> bills have been paid!\n\nYour total available cash is <b>₱${newNet.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>.\n\nCheck the app to review!`
+              })
+            }).catch(console.error);
+          }
+
           fetchDashboardData(true);
         } catch {
           console.warn("Live mark paid failed or timed out, falling back to offline queue");

@@ -117,6 +117,32 @@ function EmptyState({ title, detail }) {
   );
 }
 
+function PugMascot({ compact, unpaidCount, onOpenBills }) {
+  const billStatus = unpaidCount > 0
+    ? `${unpaidCount} bill${unpaidCount === 1 ? '' : 's'} still on the list`
+    : 'Every bill is checked off';
+
+  return (
+    <button
+      className={`pug-mascot${compact ? ' is-compact' : ''}`}
+      type="button"
+      onClick={onOpenBills}
+      aria-label={`${billStatus}. Open Bills.`}
+      data-no-swipe
+    >
+      <span className="pug-mascot-art" aria-hidden="true">
+        <span className="pug-mascot-halo" />
+        <img src="/mascot/bill-tracker-pug.png" alt="" draggable="false" />
+        <span className="pug-mascot-check"><CheckCircle2 /></span>
+      </span>
+      <span className="pug-mascot-copy">
+        <strong>Bill Pug is on it</strong>
+        <span>{billStatus} <span aria-hidden="true">›</span></span>
+      </span>
+    </button>
+  );
+}
+
 function DetailSheet({ type, onClose, data, onViewBills }) {
   if (!type) return null;
   const projected = data.netPosition - (data.remainingMondays * 5000);
@@ -370,6 +396,11 @@ export default function IosDashboard(props) {
                   >
                     <BillList bills={dashboardData.currentBills} {...billListProps} />
                   </MonthSection>
+                  <PugMascot
+                    compact={currentMonthExpanded}
+                    unpaidCount={unpaidActiveCount}
+                    onOpenBills={viewBills}
+                  />
                 </div>
               ) : homeTab === 'upcoming' ? (
                 dashboardData.upcomingMonth ? (
