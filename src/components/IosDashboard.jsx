@@ -38,12 +38,15 @@ const money = (value) => `₱${Number(value || 0).toLocaleString('en-PH', {
 
 function HeaderMascot() {
   return (
-    <span className="header-mascot-runway" aria-hidden="true">
+    <span className="header-mascot-inline" aria-hidden="true">
       <span className="header-mascot-runner">
         <span className="header-mascot-facing">
           <span className="header-mascot-body">
-            <span className="header-mascot-dust" />
-            <img src="/mascot/bill-tracker-pug.png" alt="" draggable="false" />
+            <span className="header-mascot-run-frames">
+              <img className="header-mascot-run-a" src="/mascot/billy-run-a.png" alt="" draggable="false" />
+              <img className="header-mascot-run-b" src="/mascot/billy-run-b.png" alt="" draggable="false" />
+            </span>
+            <img className="header-mascot-tired" src="/mascot/billy-tired.png" alt="" draggable="false" />
             <span className="header-mascot-sweat" />
             <span className="header-mascot-breath" />
           </span>
@@ -55,11 +58,12 @@ function HeaderMascot() {
 
 function PageHeader({ title, eyebrow, action, actionLabel = 'Add', mascot = false }) {
   return (
-    <header className={`page-header${mascot ? ' page-header-with-runner' : ''}${mascot && action ? ' has-runner-action' : ''}`}>
+    <header className="page-header">
       <div>
         {eyebrow && <p className="page-eyebrow">{eyebrow}</p>}
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           <h1 className="page-title">{title}</h1>
+          {mascot && <HeaderMascot />}
         </div>
       </div>
       {action && (
@@ -67,7 +71,6 @@ function PageHeader({ title, eyebrow, action, actionLabel = 'Add', mascot = fals
           <Plus aria-hidden="true" />
         </button>
       )}
-      {mascot && <HeaderMascot />}
     </header>
   );
 }
@@ -156,7 +159,7 @@ function PugMascot({ compact, unpaidCount, onOpenBills }) {
         <span className="pug-mascot-check"><CheckCircle2 /></span>
       </span>
       <span className="pug-mascot-copy">
-        <strong>Bill Pug is on it</strong>
+        <strong>Billy is on it</strong>
         <span>{billStatus} <span aria-hidden="true">›</span></span>
       </span>
     </button>
