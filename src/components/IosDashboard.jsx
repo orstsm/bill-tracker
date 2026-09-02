@@ -36,12 +36,23 @@ const money = (value) => `₱${Number(value || 0).toLocaleString('en-PH', {
   maximumFractionDigits: 2,
 })}`;
 
-function PageHeader({ title, eyebrow, action, actionLabel = 'Add' }) {
+function HeaderMascot() {
+  return (
+    <span className="header-mascot" aria-hidden="true">
+      <img src="/mascot/bill-tracker-pug.png" alt="" draggable="false" />
+    </span>
+  );
+}
+
+function PageHeader({ title, eyebrow, action, actionLabel = 'Add', mascot = false }) {
   return (
     <header className="page-header">
       <div>
         {eyebrow && <p className="page-eyebrow">{eyebrow}</p>}
-        <h1 className="page-title">{title}</h1>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <h1 className="page-title">{title}</h1>
+          {mascot && <HeaderMascot />}
+        </div>
       </div>
       {action && (
         <button className="icon-button" type="button" onClick={action} aria-label={actionLabel} data-no-swipe>
@@ -327,6 +338,8 @@ export default function IosDashboard(props) {
     return diffDays <= 5;
   });
 
+  const isMonthListExpanded = currentMonthExpanded || earlyRolloverExpanded;
+
   const billListProps = {
     onAmountUpdate: handleAmountUpdate,
     onMarkPaid: handleMarkAsPaid,
@@ -365,6 +378,14 @@ export default function IosDashboard(props) {
                 </button>
               )}
 
+              {isMonthListExpanded && homeTab === 'current' && (
+                <PugMascot
+                  compact
+                  unpaidCount={unpaidActiveCount}
+                  onOpenBills={viewBills}
+                />
+              )}
+
               <div className="metric-grid">
                 <MetricCard label="Available cash" value={money(netPosition)} tone="positive" foot="Current balance" onClick={() => setDetailSheet('available')} />
                 <MetricCard label="Month outflows" value={money(totalOutflows)} tone="negative" foot="Bills + withdrawals" onClick={() => setDetailSheet('outflows')} />
@@ -396,11 +417,13 @@ export default function IosDashboard(props) {
                   >
                     <BillList bills={dashboardData.currentBills} {...billListProps} />
                   </MonthSection>
-                  <PugMascot
-                    compact={currentMonthExpanded}
-                    unpaidCount={unpaidActiveCount}
-                    onOpenBills={viewBills}
-                  />
+                  {!isMonthListExpanded && (
+                    <PugMascot
+                      compact={false}
+                      unpaidCount={unpaidActiveCount}
+                      onOpenBills={viewBills}
+                    />
+                  )}
                 </div>
               ) : homeTab === 'upcoming' ? (
                 dashboardData.upcomingMonth ? (
@@ -428,7 +451,7 @@ export default function IosDashboard(props) {
 
           <section className="app-page" aria-hidden={activeTab !== 'due'} inert={activeTab !== 'due' ? '' : undefined}>
             <div className="page-inner">
-              <PageHeader title="Bills" action={() => setIsAddMenuOpen(true)} actionLabel="Quick actions" />
+              <PageHeader title="Bills" mascot action={() => setIsAddMenuOpen(true)} actionLabel="Quick actions" />
               <div className="action-row" data-no-swipe>
                 <button className="action-button secondary" type="button" onClick={() => setIsRemoveBillerOpen(true)}><FileText size={17} /> Manage Billers</button>
                 <button className="action-button" type="button" onClick={() => setIsWithdrawOpen(true)}><MinusCircle size={17} /> Withdraw Cash</button>
@@ -483,7 +506,7 @@ export default function IosDashboard(props) {
 
           <section className="app-page" aria-hidden={activeTab !== 'cashLog'} inert={activeTab !== 'cashLog' ? '' : undefined}>
             <div className="page-inner">
-              <PageHeader title="Activity" eyebrow="Cash flow and completed months" action={() => setIsWithdrawOpen(true)} actionLabel="Log a cash withdrawal" />
+              <PageHeader title="Activity" mascot eyebrow="Cash flow and completed months" action={() => setIsWithdrawOpen(true)} actionLabel="Log a cash withdrawal" />
               <Suspense fallback={<div className="surface empty-state"><div className="loading-spinner" aria-label="Loading activity" /></div>}>
                 <CashLog withdrawals={dashboardData.recentWithdrawals} />
               </Suspense>
@@ -502,7 +525,7 @@ export default function IosDashboard(props) {
 
           <section className="app-page" aria-hidden={activeTab !== 'settings'} inert={activeTab !== 'settings' ? '' : undefined}>
             <div className="page-inner">
-              <PageHeader title="Settings" eyebrow="Account and monthly plan" />
+              <PageHeader title="Settings" mascot eyebrow="Account and monthly plan" />
               <section className="settings-group">
                 <p className="settings-caption">Starting funds</p>
                 <div className="surface">
