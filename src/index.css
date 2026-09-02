@@ -346,6 +346,40 @@ select:focus-visible {
   font-weight: 650;
 }
 
+.bills-highlight-card {
+  margin-top: 14px;
+  padding: 15px 18px;
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--accent) 10%, var(--grouped-bg));
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bills-highlight-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.bills-highlight-count {
+  color: var(--warning);
+}
+
+.bills-highlight-dot {
+  color: var(--text-tertiary);
+}
+
+.bills-highlight-amount {
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
 .empty-state {
   min-height: 180px;
   padding: 32px 22px;
@@ -462,6 +496,23 @@ select:focus-visible {
 .tab-button:active { transform: scale(0.94); }
 .tab-button[aria-current="page"] { color: var(--accent-strong); background: var(--accent-soft); }
 .tab-button svg { width: 23px; height: 23px; }
+.tab-badge {
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
 
 .native-input {
   width: 100%;

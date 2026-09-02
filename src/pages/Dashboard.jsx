@@ -13,6 +13,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('active');
   const [homeTab, setHomeTab] = useState('current');
   const [detailSheet, setDetailSheet] = useState(null);
+  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const [isAddBillerOpen, setIsAddBillerOpen] = useState(false);
   const [isRemoveBillerOpen, setIsRemoveBillerOpen] = useState(false);
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
@@ -57,6 +58,7 @@ export default function Dashboard() {
 
   const switchTab = useCallback((tab) => {
     setActiveTab(tab);
+    setIsAddMenuOpen(false);
     setIsAddBillerOpen(false);
     setIsRemoveBillerOpen(false);
     setIsWithdrawOpen(false);
@@ -64,7 +66,7 @@ export default function Dashboard() {
     setShowCloseMonthModal(false);
   }, []);
 
-  const anyModalOpen = isAddBillerOpen || isRemoveBillerOpen || isWithdrawOpen || isAddSubOpen || showCloseMonthModal || Boolean(detailSheet);
+  const anyModalOpen = isAddMenuOpen || isAddBillerOpen || isRemoveBillerOpen || isWithdrawOpen || isAddSubOpen || showCloseMonthModal || Boolean(detailSheet);
   const activeIndex = TAB_ORDER.indexOf(activeTab);
   const handleSwipeIndexChange = useCallback((index) => switchTab(TAB_ORDER[index]), [switchTab]);
 
@@ -280,15 +282,18 @@ export default function Dashboard() {
 
       // Action items due: build urgency map and count
       const today = new Date();
+      today.setHours(0, 0, 0, 0);
       let dueCount = 0;
       const newUrgencyMap = {};
       let firstDue = null;
-      currentBills.forEach(b => {
+
+      const checkBillDue = (b, monthStr) => {
         if (b.status !== 'Paid') {
-          const dueDate = parseDueDateLogic(b.due_date, appActiveMonth);
+          const dueDate = parseDueDateLogic(b.due_date, monthStr);
           if (dueDate) {
-            const diffMs = dueDate.getTime() - today.getTime();
-            const diffDays = diffMs / (1000 * 60 * 60 * 24);
+            const target = new Date(dueDate);
+            target.setHours(0, 0, 0, 0);
+            const diffDays = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
             if (diffDays <= 3) {
               newUrgencyMap[b.id] = 'warn3';
               dueCount++;
@@ -300,7 +305,24 @@ export default function Dashboard() {
             }
           }
         }
+      };
+
+      currentBills.forEach(b => checkBillDue(b, appActiveMonth));
+      if (earlyRolloverMonth) {
+        earlyRolloverBills.forEach(b => checkBillDue(b, earlyRolloverMonth));
+      }
+
+      (subData || []).forEach(sub => {
+        if (sub.status === 'Active' && sub.renewal_date) {
+          const renewal = new Date(sub.renewal_date);
+          renewal.setHours(0, 0, 0, 0);
+          const diffDays = Math.ceil((renewal.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          if (diffDays <= 5) {
+            dueCount++;
+          }
+        }
       });
+
       setUrgencyMap(newUrgencyMap);
       setActionItemsDue(dueCount);
       setFirstDueBillId(firstDue);
@@ -586,6 +608,8 @@ export default function Dashboard() {
       setEditingValue={setEditingValue}
       startEditingField={startEditingField}
       saveSettingsField={saveSettingsField}
+      setIsAddMenuOpen={setIsAddMenuOpen}
+      isAddMenuOpen={isAddMenuOpen}
       setIsAddBillerOpen={setIsAddBillerOpen}
       setIsRemoveBillerOpen={setIsRemoveBillerOpen}
       setIsWithdrawOpen={setIsWithdrawOpen}

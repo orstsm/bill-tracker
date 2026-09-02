@@ -20,7 +20,7 @@ import AddBillerModal from './AddBillerModal';
 import RemoveBillerModal from './RemoveBillerModal';
 import WithdrawModal from './WithdrawModal';
 import AddSubModal from './AddSubModal';
-import { sortMonthsDescending } from '../lib/utils';
+import { sortMonthsDescending, parseDueDateLogic } from '../lib/utils';
 
 const CashLog = lazy(() => import('./CashLog'));
 
@@ -234,6 +234,8 @@ export default function IosDashboard(props) {
     setEditingValue,
     startEditingField,
     saveSettingsField,
+    setIsAddMenuOpen,
+    isAddMenuOpen,
     setIsAddBillerOpen,
     setIsRemoveBillerOpen,
     setIsWithdrawOpen,
@@ -265,10 +267,40 @@ export default function IosDashboard(props) {
   } = props;
 
   const projectedCash = netPosition - (remainingMondays * 5000);
-  const upcomingSubscriptions = dashboardData.subscriptions.filter((sub) => (
-    sub.status === 'Active'
-    && new Date(sub.renewal_date).getTime() - Date.now() <= 7 * 24 * 60 * 60 * 1000
-  ));
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const dueBills = dashboardData.currentBills.filter((bill) => {
+    if (bill.status === 'Paid') return false;
+    const dueDate = parseDueDateLogic(bill.due_date, dashboardData.appActiveMonth);
+    if (!dueDate) return false;
+    const target = new Date(dueDate);
+    target.setHours(0, 0, 0, 0);
+    const diffDays = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays <= 7;
+  });
+
+  const dueRolloverBills = (dashboardData.earlyRolloverBills || []).filter((bill) => {
+    if (bill.status === 'Paid') return false;
+    const dueDate = parseDueDateLogic(bill.due_date, dashboardData.earlyRolloverMonth);
+    if (!dueDate) return false;
+    const target = new Date(dueDate);
+    target.setHours(0, 0, 0, 0);
+    const diffDays = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays <= 7;
+  });
+
+  const urgentBills = [...dueRolloverBills, ...dueBills];
+
+  const dueSubscriptions = (dashboardData.subscriptions || []).filter((sub) => {
+    if (sub.status !== 'Active' || !sub.renewal_date) return false;
+    const renewal = new Date(sub.renewal_date);
+    renewal.setHours(0, 0, 0, 0);
+    const diffDays = Math.ceil((renewal.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays <= 5;
+  });
+
   const billListProps = {
     onAmountUpdate: handleAmountUpdate,
     onMarkPaid: handleMarkAsPaid,
@@ -293,13 +325,16 @@ export default function IosDashboard(props) {
               <PageHeader
                 title="Bill Tracker"
                 eyebrow={`${dashboardData.appActiveMonth || 'Your finances'} · Hi, ${getDisplayName()}`}
-                action={() => setIsAddBillerOpen(true)}
-                actionLabel="Add a biller"
+                action={() => setIsAddMenuOpen(true)}
+                actionLabel="Quick actions"
               />
 
               {actionItemsDue > 0 && (
                 <button className="notice-button" type="button" onClick={viewBills} data-no-swipe>
-                  <span>{actionItemsDue} item{actionItemsDue === 1 ? '' : 's'} need attention</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                    <AlertCircle size={18} style={{ color: 'var(--warning)', flexShrink: 0 }} />
+                    <span>{actionItemsDue} item{actionItemsDue === 1 ? '' : 's'} need attention</span>
+                  </div>
                   <span>Review ›</span>
                 </button>
               )}
@@ -362,28 +397,54 @@ export default function IosDashboard(props) {
 
           <section className="app-page" aria-hidden={activeTab !== 'due'} inert={activeTab !== 'due' ? '' : undefined}>
             <div className="page-inner">
-              <PageHeader title="Bills" eyebrow={`${unpaidActiveCount} unpaid · ${money(remainingThisMonth)} remaining`} action={() => setIsAddBillerOpen(true)} actionLabel="Add a biller" />
+              <PageHeader title="Bills" action={() => setIsAddMenuOpen(true)} actionLabel="Quick actions" />
               <div className="action-row" data-no-swipe>
                 <button className="action-button secondary" type="button" onClick={() => setIsRemoveBillerOpen(true)}><FileText size={17} /> Manage Billers</button>
                 <button className="action-button" type="button" onClick={() => setIsWithdrawOpen(true)}><MinusCircle size={17} /> Withdraw Cash</button>
               </div>
-              {actionItemsDue > 0 && (
+
+              <div className="bills-highlight-card" data-no-swipe>
+                <div className="bills-highlight-pill">
+                  <span className="bills-highlight-count">{unpaidActiveCount} unpaid</span>
+                  <span className="bills-highlight-dot">·</span>
+                  <span className="bills-highlight-amount">{money(remainingThisMonth)} remaining</span>
+                </div>
+              </div>
+
+              {urgentBills.length > 0 && (
                 <section className="section-gap">
-                  <div className="section-heading"><h2>Needs attention</h2><span className="accordion-meta">Within 7 days</span></div>
+                  <div className="section-heading">
+                    <h2>Bills due soon</h2>
+                    <span className="accordion-meta">Within 7 days</span>
+                  </div>
                   <div className="surface">
-                    <BillList bills={dashboardData.currentBills.filter((bill) => urgencyMap[bill.id] && bill.status !== 'Paid')} {...billListProps} />
-                    {upcomingSubscriptions.length > 0 && <SubscriptionList subscriptions={upcomingSubscriptions} onIgnoreRenew={handleIgnoreRenew} onCancelSub={handleCancelSub} />}
+                    <BillList bills={urgentBills} {...billListProps} />
                   </div>
                 </section>
               )}
-              <section className="section-gap">
-                <div className="section-heading"><h2>{dashboardData.appActiveMonth}</h2><span className="accordion-meta">All bills</span></div>
-                <div className="surface"><BillList bills={dashboardData.currentBills} {...billListProps} /></div>
-              </section>
-              {dashboardData.earlyRolloverMonth && (
+
+              {dueSubscriptions.length > 0 && (
                 <section className="section-gap">
-                  <div className="section-heading"><h2>{dashboardData.earlyRolloverMonth}</h2><span className="accordion-meta">Rollover</span></div>
-                  <div className="surface"><BillList bills={dashboardData.earlyRolloverBills} {...billListProps} /></div>
+                  <div className="section-heading">
+                    <h2>Subscriptions renewing soon</h2>
+                    <span className="accordion-meta">Within 5 days</span>
+                  </div>
+                  <div className="surface">
+                    <SubscriptionList
+                      subscriptions={dueSubscriptions}
+                      onIgnoreRenew={handleIgnoreRenew}
+                      onCancelSub={handleCancelSub}
+                    />
+                  </div>
+                </section>
+              )}
+
+              {urgentBills.length === 0 && dueSubscriptions.length === 0 && (
+                <section className="section-gap">
+                  <EmptyState
+                    title="All caught up"
+                    detail="No bills due in the next 7 days and no subscriptions renewing in the next 5 days."
+                  />
                 </section>
               )}
             </div>
@@ -460,7 +521,12 @@ export default function IosDashboard(props) {
         <nav className="mobile-bottom-nav" aria-label="Main navigation" data-no-swipe>
           {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
             <button className="tab-button" type="button" key={id} aria-current={activeTab === id ? 'page' : undefined} onClick={() => switchTab(id)}>
-              <Icon aria-hidden="true" />
+              <div style={{ position: 'relative', display: 'inline-flex' }}>
+                <Icon aria-hidden="true" />
+                {id === 'due' && actionItemsDue > 0 && (
+                  <span className="tab-badge">{actionItemsDue}</span>
+                )}
+              </div>
               <span>{label}</span>
             </button>
           ))}
@@ -482,6 +548,65 @@ export default function IosDashboard(props) {
           remainingMondays,
         }}
       />
+
+      {isAddMenuOpen && (
+        <div className="sheet-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setIsAddMenuOpen(false)}>
+          <section className="ios-sheet" role="dialog" aria-modal="true" aria-labelledby="add-action-title" data-no-swipe>
+            <div className="sheet-grabber" />
+            <header className="sheet-header">
+              <h2 id="add-action-title">Quick Actions</h2>
+              <button className="sheet-cancel" type="button" onClick={() => setIsAddMenuOpen(false)}>Cancel</button>
+            </header>
+            <div className="sheet-body" style={{ gap: 10 }}>
+              <button
+                className="action-button"
+                type="button"
+                onClick={() => {
+                  setIsAddMenuOpen(false);
+                  setIsWithdrawOpen(true);
+                }}
+                style={{
+                  minHeight: 52,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'flex-start',
+                  padding: '14px 18px',
+                  borderRadius: 14,
+                  gap: 12,
+                }}
+              >
+                <MinusCircle size={20} style={{ color: 'var(--danger)' }} />
+                <span>Add Withdrawal</span>
+              </button>
+
+              <button
+                className="action-button secondary"
+                type="button"
+                onClick={() => {
+                  setIsAddMenuOpen(false);
+                  setIsAddBillerOpen(true);
+                }}
+                style={{
+                  minHeight: 52,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'flex-start',
+                  padding: '14px 18px',
+                  borderRadius: 14,
+                  gap: 12,
+                }}
+              >
+                <Plus size={20} style={{ color: 'var(--accent-strong)' }} />
+                <span>Add Biller</span>
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {isAddBillerOpen && <AddBillerModal onClose={() => setIsAddBillerOpen(false)} onBillerAdded={() => fetchDashboardData(true)} />}
       {isRemoveBillerOpen && <RemoveBillerModal onClose={() => setIsRemoveBillerOpen(false)} onBillerRemoved={() => fetchDashboardData(true)} />}
