@@ -38,20 +38,28 @@ const money = (value) => `₱${Number(value || 0).toLocaleString('en-PH', {
 
 function HeaderMascot() {
   return (
-    <span className="header-mascot" aria-hidden="true">
-      <img src="/mascot/bill-tracker-pug.png" alt="" draggable="false" />
+    <span className="header-mascot-runway" aria-hidden="true">
+      <span className="header-mascot-runner">
+        <span className="header-mascot-facing">
+          <span className="header-mascot-body">
+            <span className="header-mascot-dust" />
+            <img src="/mascot/bill-tracker-pug.png" alt="" draggable="false" />
+            <span className="header-mascot-sweat" />
+            <span className="header-mascot-breath" />
+          </span>
+        </span>
+      </span>
     </span>
   );
 }
 
 function PageHeader({ title, eyebrow, action, actionLabel = 'Add', mascot = false }) {
   return (
-    <header className="page-header">
+    <header className={`page-header${mascot ? ' page-header-with-runner' : ''}${mascot && action ? ' has-runner-action' : ''}`}>
       <div>
         {eyebrow && <p className="page-eyebrow">{eyebrow}</p>}
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           <h1 className="page-title">{title}</h1>
-          {mascot && <HeaderMascot />}
         </div>
       </div>
       {action && (
@@ -59,6 +67,7 @@ function PageHeader({ title, eyebrow, action, actionLabel = 'Add', mascot = fals
           <Plus aria-hidden="true" />
         </button>
       )}
+      {mascot && <HeaderMascot />}
     </header>
   );
 }
