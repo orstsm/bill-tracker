@@ -39,20 +39,22 @@ const money = (value) => `₱${Number(value || 0).toLocaleString('en-PH', {
 function HeaderMascot() {
   return (
     <span className="header-mascot-inline" aria-hidden="true">
-      <picture>
-        <source media="(prefers-reduced-motion: reduce)" srcSet="/mascot/billy-run-a.png" />
-        <img src="/mascot/billy-running.webp" alt="" draggable="false" />
-      </picture>
+      <span className="header-mascot-runner">
+        <picture>
+          <source media="(prefers-reduced-motion: reduce)" srcSet="/mascot/billy-running-v2-poster.png" />
+          <img src="/mascot/billy-running-v2.webp" alt="" draggable="false" />
+        </picture>
+      </span>
     </span>
   );
 }
 
 function PageHeader({ title, eyebrow, action, actionLabel = 'Add', mascot = false }) {
   return (
-    <header className="page-header">
-      <div>
+    <header className={`page-header${mascot ? ' page-header-with-mascot' : ''}`}>
+      <div className="page-header-copy">
         {eyebrow && <p className="page-eyebrow">{eyebrow}</p>}
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+        <div className="page-header-title-row">
           <h1 className="page-title">{title}</h1>
           {mascot && <HeaderMascot />}
         </div>
