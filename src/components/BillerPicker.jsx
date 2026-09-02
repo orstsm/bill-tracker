@@ -54,7 +54,7 @@ export default function BillerPicker({ value, onChange }) {
           type="search"
           role="combobox"
           className="native-input biller-picker-input"
-          placeholder="Search banks, cards, MP2…"
+          placeholder="Search cards, utilities, internet, insurance…"
           value={query}
           onChange={handleInput}
           onFocus={() => setIsOpen(true)}
