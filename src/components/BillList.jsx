@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
+import BillerLogo from './BillerLogo';
 
 const AmountInput = ({ bill, readOnly, amountColor, onAmountUpdate, isMobile }) => {
   const [localValue, setLocalValue] = useState(Number(bill.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 }));
@@ -158,7 +159,12 @@ export default function BillList({ bills, onAmountUpdate, onMarkPaid, isHistory 
                   className={rowClass}
                   style={{ borderTop: '1px solid var(--glass-border)', transition: 'background 0.2s', fontSize: '14px' }}
                 >
-                  <td style={{ padding: '16px', fontWeight: 'bold' }}>{bill.biller}</td>
+                  <td style={{ padding: '16px', fontWeight: 'bold' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <BillerLogo biller={bill.biller} size={28} />
+                      <span>{bill.biller}</span>
+                    </div>
+                  </td>
                   <td style={{ padding: '16px', color: 'var(--text-muted)' }}>{bill.statement_date || '—'}</td>
                   <td style={{ padding: '16px', color: 'var(--text-muted)' }}>{bill.due_date || '—'}</td>
                   <td style={{ padding: '16px', fontStyle: 'italic', color: 'var(--accent)', fontSize: '13px' }}>{bill.channel || '—'}</td>
@@ -229,16 +235,41 @@ export default function BillList({ bills, onAmountUpdate, onMarkPaid, isHistory 
               }}
             >
               {/* Card Header — always visible */}
-              <button type="button" onClick={() => toggleExpand(bill.id)} aria-expanded={isExpanded} data-no-swipe style={{ width: '100%', minHeight: '68px', padding: '11px 0', border: 0, background: 'transparent', color: 'var(--text-main)', textAlign: 'left' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontWeight: '600', fontSize: '16px' }}>{bill.biller}</span>
-                  <span style={{ fontWeight: '500', color: amountColor, fontSize: '16px' }}>₱{displayAmount}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
-                    Due {bill.due_date || '—'} · {bill.status === 'Paid' ? <span style={{ color: 'var(--success)' }}>Paid</span> : bill.status}
-                  </span>
-                  {isExpanded ? <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />}
+              <button
+                type="button"
+                onClick={() => toggleExpand(bill.id)}
+                aria-expanded={isExpanded}
+                data-no-swipe
+                style={{
+                  width: '100%',
+                  minHeight: '68px',
+                  padding: '12px 0',
+                  border: 0,
+                  background: 'transparent',
+                  color: 'var(--text-main)',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                }}
+              >
+                <BillerLogo biller={bill.biller} size={38} />
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
+                    <span style={{ fontWeight: '600', fontSize: '16px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {bill.biller}
+                    </span>
+                    <span style={{ fontWeight: '500', color: amountColor, fontSize: '16px', flexShrink: 0 }}>
+                      ₱{displayAmount}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '3px' }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      Due {bill.due_date || '—'} · {bill.status === 'Paid' ? <span style={{ color: 'var(--success)' }}>Paid</span> : bill.status}
+                    </span>
+                    {isExpanded ? <ChevronUp size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} /> : <ChevronDown size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />}
+                  </div>
                 </div>
               </button>
 

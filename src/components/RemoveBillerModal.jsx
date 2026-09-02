@@ -1,6 +1,7 @@
 import { useCallback, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/auth';
+import BillerLogo from './BillerLogo';
 
 export default function RemoveBillerModal({ onClose, onBillerRemoved }) {
   const { user } = useAuth();
@@ -64,8 +65,11 @@ export default function RemoveBillerModal({ onClose, onBillerRemoved }) {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
             {billers.map(b => (
-              <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px', background: 'var(--input-bg)', borderRadius: '12px' }}>
-                <span style={{ fontWeight: '600', fontSize: '15px' }}>{b.biller}</span>
+              <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--input-bg)', borderRadius: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <BillerLogo biller={b.biller} size={28} />
+                  <span style={{ fontWeight: '600', fontSize: '15px' }}>{b.biller}</span>
+                </div>
                 <button 
                   onClick={() => handleRemove(b.id)}
                   disabled={removing}
