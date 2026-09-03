@@ -70,12 +70,18 @@ export default function Dashboard() {
   const activeIndex = TAB_ORDER.indexOf(activeTab);
   const handleSwipeIndexChange = useCallback((index) => switchTab(TAB_ORDER[index]), [switchTab]);
 
-  const { viewportRef, trackRef } = useSwipeNav({
+  const { viewportRef, trackRef, scrollToIndex } = useSwipeNav({
     activeIndex,
     count: TAB_ORDER.length,
     onIndexChange: handleSwipeIndexChange,
     disabled: anyModalOpen,
   });
+
+  const navigateToTab = useCallback((tab) => {
+    const nextIndex = TAB_ORDER.indexOf(tab);
+    if (nextIndex >= 0) scrollToIndex(nextIndex, true);
+    switchTab(tab);
+  }, [scrollToIndex, switchTab]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -644,6 +650,7 @@ export default function Dashboard() {
     <IosDashboard
       activeTab={activeTab}
       switchTab={switchTab}
+      navigateToTab={navigateToTab}
       homeTab={homeTab}
       setHomeTab={setHomeTab}
       detailSheet={detailSheet}

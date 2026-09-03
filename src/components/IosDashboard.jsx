@@ -149,7 +149,10 @@ function PugMascot({ compact, unpaidCount, onOpenBills }) {
     <button
       className={`pug-mascot${compact ? ' is-compact' : ''}`}
       type="button"
-      onClick={onOpenBills}
+      onClick={(event) => {
+        event.currentTarget.blur();
+        onOpenBills();
+      }}
       aria-label={`${billStatus}. Open Bills.`}
       data-swipe-lock
     >
@@ -266,6 +269,7 @@ export default function IosDashboard(props) {
   const {
     activeTab,
     switchTab,
+    navigateToTab,
     homeTab,
     setHomeTab,
     detailSheet,
@@ -390,7 +394,7 @@ export default function IosDashboard(props) {
 
   const viewBills = () => {
     setDetailSheet(null);
-    switchTab('due');
+    navigateToTab('due');
     if (firstDueBillId) window.setTimeout(() => setScrollToBillId(firstDueBillId), 340);
   };
 
@@ -414,7 +418,15 @@ export default function IosDashboard(props) {
               />
 
               {actionItemsDue > 0 && (
-                <button className="notice-button" type="button" onClick={viewBills} data-swipe-lock>
+                <button
+                  className="notice-button"
+                  type="button"
+                  onClick={(event) => {
+                    event.currentTarget.blur();
+                    viewBills();
+                  }}
+                  data-swipe-lock
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                     <AlertCircle size={18} style={{ color: 'var(--warning)', flexShrink: 0 }} />
                     <span className="notice-copy">{attentionMessage}</span>
