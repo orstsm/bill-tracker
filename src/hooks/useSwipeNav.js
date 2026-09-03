@@ -1,173 +1,96 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import useEmblaCarousel from 'embla-carousel-react';
 
-const EASE_OUT = 'cubic-bezier(0.22, 1, 0.36, 1)';
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
 /**
- * Direct-manipulation page navigation. The rail follows the user's finger,
- * then settles using both drag distance and terminal velocity.
+ * Native-feeling page navigation powered by Embla's direct-manipulation
+ * physics. The page rail and tab indicator share the same scroll progress so
+ * they always remain visually connected to the user's finger.
  */
 export default function useSwipeNav({ activeIndex, count, onIndexChange, disabled = false }) {
-  const viewportRef = useRef(null);
-  const trackRef = useRef(null);
   const indexRef = useRef(activeIndex);
-  const stateRef = useRef({
-    tracking: false,
-    decided: false,
-    horizontal: false,
-    pointerId: null,
-    startX: 0,
-    startY: 0,
-    lastX: 0,
-    lastTime: 0,
-    velocityX: 0,
-    dragX: 0,
-    suppressClick: false,
-  });
-
-  const placeTrack = useCallback((index, dragX = 0, animate = true) => {
-    const viewport = viewportRef.current;
-    const track = trackRef.current;
-    if (!viewport || !track) return;
-    const width = viewport.clientWidth;
-    track.style.transition = animate ? `transform 300ms ${EASE_OUT}` : 'none';
-    track.style.transform = `translate3d(${(-index * width) + dragX}px, 0, 0)`;
-  }, []);
+  const initialIndexRef = useRef(activeIndex);
+  const onIndexChangeRef = useRef(onIndexChange);
+  const trackRef = useRef(null);
 
   useEffect(() => {
     indexRef.current = activeIndex;
-    placeTrack(activeIndex, 0, true);
-  }, [activeIndex, placeTrack]);
+  }, [activeIndex]);
 
   useEffect(() => {
-    const handleResize = () => placeTrack(indexRef.current, 0, false);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [placeTrack]);
+    onIndexChangeRef.current = onIndexChange;
+  }, [onIndexChange]);
+
+  const watchDrag = useCallback((_api, event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return true;
+
+    // Form controls and explicitly locked regions own their gestures. Normal
+    // buttons, links, cards, and rows remain swipeable; Embla suppresses their
+    // click only when the movement becomes a real drag.
+    return !target.closest('input, select, textarea, [contenteditable="true"], [role="slider"], [data-swipe-lock]');
+  }, []);
+
+  const options = useMemo(() => ({
+    active: true,
+    align: 'start',
+    axis: 'x',
+    containScroll: 'trimSnaps',
+    dragFree: false,
+    dragThreshold: 9,
+    duration: 24,
+    loop: false,
+    skipSnaps: false,
+    slidesToScroll: 1,
+    startIndex: initialIndexRef.current,
+    watchDrag: disabled ? false : watchDrag,
+  }), [disabled, watchDrag]);
+
+  const [viewportRef, emblaApi] = useEmblaCarousel(options);
 
   useEffect(() => {
-    const viewport = viewportRef.current;
-    if (!viewport) return;
+    if (!emblaApi) return undefined;
 
-    const isInteractive = (element) => {
-      if (!(element instanceof Element)) return false;
-      return Boolean(element.closest('button, a, input, select, textarea, [data-no-swipe], [role="button"]'));
+    const shell = emblaApi.rootNode().closest('.app-shell');
+
+    const updateProgress = () => {
+      const progress = Math.max(0, Math.min(1, emblaApi.scrollProgress()));
+      shell?.style.setProperty('--tab-progress', String(progress * Math.max(0, count - 1)));
     };
 
-    const reset = () => {
-      stateRef.current.tracking = false;
-      stateRef.current.decided = false;
-      stateRef.current.horizontal = false;
-      stateRef.current.pointerId = null;
-      stateRef.current.dragX = 0;
+    const handleSelect = () => {
+      const selectedIndex = emblaApi.selectedScrollSnap();
+      updateProgress();
+      if (selectedIndex === indexRef.current) return;
+
+      indexRef.current = selectedIndex;
+      onIndexChangeRef.current(selectedIndex);
     };
 
-    const onPointerDown = (event) => {
-      if (disabled || !event.isPrimary || isInteractive(event.target)) return;
-      if (event.clientX < 24 || event.clientX > window.innerWidth - 24) return;
+    const handleSettle = () => updateProgress();
 
-      const now = performance.now();
-      stateRef.current = {
-        tracking: true,
-        decided: false,
-        horizontal: false,
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
-        lastX: event.clientX,
-        lastTime: now,
-        velocityX: 0,
-        dragX: 0,
-        suppressClick: false,
-      };
-      viewport.setPointerCapture?.(event.pointerId);
-    };
-
-    const onPointerMove = (event) => {
-      const state = stateRef.current;
-      if (!state.tracking || state.pointerId !== event.pointerId) return;
-
-      const dx = event.clientX - state.startX;
-      const dy = event.clientY - state.startY;
-      const absX = Math.abs(dx);
-      const absY = Math.abs(dy);
-
-      if (!state.decided && (absX > 7 || absY > 7)) {
-        state.decided = true;
-        state.horizontal = absX > absY * 1.12;
-        if (!state.horizontal) {
-          reset();
-          return;
-        }
-      }
-
-      if (!state.horizontal) return;
-      event.preventDefault();
-
-      const now = performance.now();
-      const elapsed = Math.max(now - state.lastTime, 1);
-      const instantVelocity = (event.clientX - state.lastX) / elapsed;
-      state.velocityX = (state.velocityX * 0.65) + (instantVelocity * 0.35);
-      state.lastX = event.clientX;
-      state.lastTime = now;
-
-      const atStart = indexRef.current === 0 && dx > 0;
-      const atEnd = indexRef.current === count - 1 && dx < 0;
-      state.dragX = atStart || atEnd ? dx * 0.24 : dx;
-      state.suppressClick = absX > 10;
-      placeTrack(indexRef.current, state.dragX, false);
-    };
-
-    const finishGesture = (event, cancelled = false) => {
-      const state = stateRef.current;
-      if (!state.tracking || state.pointerId !== event.pointerId) return;
-
-      let nextIndex = indexRef.current;
-      if (!cancelled && state.horizontal) {
-        const width = viewport.clientWidth;
-        const projectedX = state.dragX + (state.velocityX * 180);
-        const crossedDistance = Math.abs(state.dragX) > width * 0.22;
-        const fastFlick = Math.abs(state.velocityX) > 0.5;
-        if (crossedDistance || fastFlick) {
-          nextIndex += projectedX < 0 ? 1 : -1;
-          nextIndex = Math.max(0, Math.min(count - 1, nextIndex));
-        }
-      }
-
-      placeTrack(nextIndex, 0, true);
-      if (nextIndex !== indexRef.current) {
-        indexRef.current = nextIndex;
-        onIndexChange(nextIndex);
-      }
-      state.tracking = false;
-      state.pointerId = null;
-      state.dragX = 0;
-      window.setTimeout(() => { state.suppressClick = false; }, 320);
-    };
-
-    const onClickCapture = (event) => {
-      if (stateRef.current.suppressClick) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    };
-
-    const onPointerUp = (event) => finishGesture(event, false);
-    const onPointerCancel = (event) => finishGesture(event, true);
-
-    viewport.addEventListener('pointerdown', onPointerDown);
-    viewport.addEventListener('pointermove', onPointerMove, { passive: false });
-    viewport.addEventListener('pointerup', onPointerUp);
-    viewport.addEventListener('pointercancel', onPointerCancel);
-    viewport.addEventListener('click', onClickCapture, true);
+    updateProgress();
+    emblaApi
+      .on('scroll', updateProgress)
+      .on('select', handleSelect)
+      .on('reInit', updateProgress)
+      .on('settle', handleSettle);
 
     return () => {
-      viewport.removeEventListener('pointerdown', onPointerDown);
-      viewport.removeEventListener('pointermove', onPointerMove);
-      viewport.removeEventListener('pointerup', onPointerUp);
-      viewport.removeEventListener('pointercancel', onPointerCancel);
-      viewport.removeEventListener('click', onClickCapture, true);
+      emblaApi
+        .off('scroll', updateProgress)
+        .off('select', handleSelect)
+        .off('reInit', updateProgress)
+        .off('settle', handleSettle);
     };
-  }, [count, disabled, onIndexChange, placeTrack]);
+  }, [count, emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi || emblaApi.selectedScrollSnap() === activeIndex) return;
+    const reduceMotion = window.matchMedia(REDUCED_MOTION_QUERY).matches;
+    emblaApi.scrollTo(activeIndex, reduceMotion);
+  }, [activeIndex, emblaApi]);
 
   return { viewportRef, trackRef };
 }

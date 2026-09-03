@@ -7,7 +7,7 @@ A production-oriented React PWA for tracking monthly bills, withdrawals, subscri
 - Four compact, interactive financial cards on Home
 - Internal Home tabs for This Month, Upcoming, and Subscriptions
 - Labeled Home, Bills, Activity, and Settings navigation
-- Direct-manipulation page swiping with velocity, edge resistance, and snap-back
+- Full-surface page swiping with force-based settling and a synchronized tab indicator
 - Independent scroll position for each top-level page
 - Native-style grouped lists, controls, confirmation sheets, and dark mode
 - Safe-area support, reduced-motion support, accessible buttons, and scalable text

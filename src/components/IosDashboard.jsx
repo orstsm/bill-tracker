@@ -602,6 +602,7 @@ export default function IosDashboard(props) {
 
       <div className="tab-bar-wrap">
         <nav className="mobile-bottom-nav" aria-label="Main navigation" data-no-swipe>
+          <span className="tab-selection-indicator" aria-hidden="true" />
           {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
             <button className="tab-button" type="button" key={id} aria-current={activeTab === id ? 'page' : undefined} onClick={() => switchTab(id)}>
               <div style={{ position: 'relative', display: 'inline-flex' }}>
