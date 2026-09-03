@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
   Banknote,
@@ -38,6 +38,23 @@ const money = (value) => `₱${Number(value || 0).toLocaleString('en-PH', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 })}`;
+
+const summarizeAttentionGroup = (names, singular, plural) => {
+  const validNames = names.filter(Boolean);
+  if (validNames.length === 0) return '';
+  if (validNames.length === 1) return `${validNames[0]} ${singular}`;
+  if (validNames.length === 2) return `${validNames[0]} and ${validNames[1]} ${plural}`;
+  return `${validNames[0]} and ${validNames.length - 1} other ${plural}`;
+};
+
+const getAttentionMessage = (bills, subscriptions) => {
+  const billSummary = summarizeAttentionGroup(bills.map((bill) => bill.biller), 'bill', 'bills');
+  const subscriptionSummary = summarizeAttentionGroup(subscriptions.map((subscription) => subscription.name), 'subscription', 'subscriptions');
+
+  if (billSummary && subscriptionSummary) return `${billSummary} plus ${subscriptionSummary} need attention`;
+  if (billSummary) return `${billSummary} ${bills.length === 1 ? 'needs' : 'need'} attention`;
+  return `${subscriptionSummary} ${subscriptions.length === 1 ? 'needs' : 'need'} attention`;
+};
 
 function PageHeader({ title, eyebrow, action, actionLabel = 'Add', mascot = false }) {
   return (
@@ -134,7 +151,7 @@ function PugMascot({ compact, unpaidCount, onOpenBills }) {
       type="button"
       onClick={onOpenBills}
       aria-label={`${billStatus}. Open Bills.`}
-      data-no-swipe
+      data-swipe-lock
     >
       <span className="pug-mascot-art" aria-hidden="true">
         <span className="pug-mascot-halo" />
@@ -243,6 +260,8 @@ function HistorySections({ historyMonths, expandedMonth, setExpandedMonth, onAmo
 
 export default function IosDashboard(props) {
   useVisualViewport();
+  const [billsOverviewExpanded, setBillsOverviewExpanded] = useState(false);
+  const billsOverviewRef = useRef(null);
 
   const {
     activeTab,
@@ -338,6 +357,27 @@ export default function IosDashboard(props) {
     return diffDays <= 5;
   });
 
+  const unpaidCurrentBills = dashboardData.currentBills.filter((bill) => bill.status !== 'Paid');
+  const attentionMessage = getAttentionMessage(urgentBills, dueSubscriptions);
+
+  useEffect(() => {
+    if (activeTab !== 'due') {
+      setBillsOverviewExpanded(false);
+      return undefined;
+    }
+
+    if (!billsOverviewExpanded) return undefined;
+
+    const collapseWhenClickingOutside = (event) => {
+      if (billsOverviewRef.current && !billsOverviewRef.current.contains(event.target)) {
+        setBillsOverviewExpanded(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', collapseWhenClickingOutside);
+    return () => document.removeEventListener('pointerdown', collapseWhenClickingOutside);
+  }, [activeTab, billsOverviewExpanded]);
+
   const isMonthListExpanded = currentMonthExpanded || earlyRolloverExpanded;
 
   const billListProps = {
@@ -350,7 +390,6 @@ export default function IosDashboard(props) {
 
   const viewBills = () => {
     setDetailSheet(null);
-    setCurrentMonthExpanded(true);
     switchTab('due');
     if (firstDueBillId) window.setTimeout(() => setScrollToBillId(firstDueBillId), 340);
   };
@@ -375,10 +414,10 @@ export default function IosDashboard(props) {
               />
 
               {actionItemsDue > 0 && (
-                <button className="notice-button" type="button" onClick={viewBills} data-no-swipe>
+                <button className="notice-button" type="button" onClick={viewBills} data-swipe-lock>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                     <AlertCircle size={18} style={{ color: 'var(--warning)', flexShrink: 0 }} />
-                    <span>{actionItemsDue} item{actionItemsDue === 1 ? '' : 's'} need attention</span>
+                    <span className="notice-copy">{attentionMessage}</span>
                   </div>
                   <span>Review ›</span>
                 </button>
@@ -463,12 +502,32 @@ export default function IosDashboard(props) {
                 <button className="action-button" type="button" onClick={() => setIsWithdrawOpen(true)}><MinusCircle size={17} /> Withdraw Cash</button>
               </div>
 
-              <div className="bills-highlight-card" data-no-swipe>
-                <div className="bills-highlight-pill">
-                  <span className="bills-highlight-count">{unpaidActiveCount} unpaid</span>
-                  <span className="bills-highlight-dot">·</span>
-                  <span className="bills-highlight-amount">{money(remainingThisMonth)} remaining</span>
-                </div>
+              <div className="bills-overview" ref={billsOverviewRef}>
+                <button
+                  className="bills-highlight-card"
+                  type="button"
+                  aria-expanded={billsOverviewExpanded}
+                  aria-controls="current-unpaid-bills"
+                  onClick={() => setBillsOverviewExpanded((expanded) => !expanded)}
+                  data-no-swipe
+                >
+                  <span className="bills-highlight-pill">
+                    <span className="bills-highlight-count">{unpaidActiveCount} unpaid</span>
+                    <span className="bills-highlight-dot">·</span>
+                    <span className="bills-highlight-amount">{money(remainingThisMonth)} remaining</span>
+                    <ChevronDown className={`bills-highlight-chevron${billsOverviewExpanded ? ' is-expanded' : ''}`} size={18} aria-hidden="true" />
+                  </span>
+                </button>
+
+                {billsOverviewExpanded && (
+                  <section className="surface bills-expanded-panel" id="current-unpaid-bills" aria-label={`${dashboardData.appActiveMonth} unpaid bills`}>
+                    <div className="bills-expanded-heading">
+                      <strong>{dashboardData.appActiveMonth}</strong>
+                      <span>{unpaidCurrentBills.length} unpaid</span>
+                    </div>
+                    <BillList bills={unpaidCurrentBills} {...billListProps} />
+                  </section>
+                )}
               </div>
 
               {urgentBills.length > 0 && (

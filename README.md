@@ -5,6 +5,7 @@ A production-oriented React PWA for tracking monthly bills, withdrawals, subscri
 ## What changed
 
 - Four compact, interactive financial cards on Home
+- Expandable unpaid-bills summary on Bills that automatically folds on navigation or outside taps
 - Internal Home tabs for This Month, Upcoming, and Subscriptions
 - Labeled Home, Bills, Activity, and Settings navigation
 - Full-surface page swiping with force-based settling and a synchronized tab indicator
@@ -13,7 +14,8 @@ A production-oriented React PWA for tracking monthly bills, withdrawals, subscri
 - Safe-area support, reduced-motion support, accessible buttons, and scalable text
 - Standalone PWA configuration with valid app icons
 - Lazy-loaded cash-flow chart for a smaller initial bundle
-- Searchable Philippine biller and popular subscription catalogs with local, optimized logos
+- Searchable Philippine biller and popular subscription catalogs, plus manual entries with initials logos
+- Specific due-soon notices that name affected billers and subscriptions
 - Keyboard-aware sheets that stay usable when the iPhone keyboard is open
 - Clean dependency security audit
 

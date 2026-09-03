@@ -367,16 +367,32 @@ select:focus-visible {
   font-weight: 650;
 }
 
-.bills-highlight-card {
+.notice-copy {
+  line-height: 1.3;
+}
+
+.bills-overview {
   margin-top: 14px;
+}
+
+.bills-highlight-card {
+  width: 100%;
   padding: 15px 18px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
   border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--accent) 10%, var(--grouped-bg));
-  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--text-main);
   box-shadow: var(--shadow-sm);
   display: flex;
   align-items: center;
   justify-content: center;
+  text-align: center;
+  transition: background 160ms ease, transform 120ms ease;
+}
+
+.bills-highlight-card:active {
+  background: color-mix(in srgb, var(--accent) 16%, var(--grouped-bg));
+  transform: scale(.985);
 }
 
 .bills-highlight-pill {
@@ -399,6 +415,42 @@ select:focus-visible {
 .bills-highlight-amount {
   color: var(--text-main);
   font-variant-numeric: tabular-nums;
+}
+
+.bills-highlight-chevron {
+  flex: 0 0 auto;
+  color: var(--accent-strong);
+  transition: transform 220ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.bills-highlight-chevron.is-expanded {
+  transform: rotate(180deg);
+}
+
+.bills-expanded-panel {
+  margin-top: 10px;
+  animation: bills-panel-open 240ms cubic-bezier(.22, 1, .36, 1);
+  transform-origin: top center;
+}
+
+.bills-expanded-heading {
+  min-height: 48px;
+  padding: 11px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--separator);
+}
+
+.bills-expanded-heading strong {
+  font-size: 15px;
+}
+
+.bills-expanded-heading span {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .empty-state {
@@ -870,6 +922,32 @@ select:focus-visible {
   font-weight: 650;
 }
 
+.manual-provider-entry {
+  display: flex;
+  flex-direction: column;
+}
+
+.picker-mode-button {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.picker-mode-button:active {
+  background: var(--accent-soft);
+}
+
 .biller-picker-empty {
   margin: 0;
   padding: 15px;
@@ -1026,6 +1104,9 @@ select:focus-visible {
 @keyframes fade-in { from { opacity: 0; } }
 @keyframes sheet-up { from { opacity: .4; transform: translateY(34px) scale(.98); } }
 @keyframes row-flash { 0%, 45% { background: color-mix(in srgb, var(--accent) 18%, transparent); } }
+@keyframes bills-panel-open {
+  from { opacity: 0; transform: translateY(-8px) scale(.99); }
+}
 @keyframes pug-float {
   0%, 100% { transform: translateY(2px) rotate(-0.4deg); }
   50% { transform: translateY(-7px) rotate(0.5deg); }

@@ -12,7 +12,13 @@ export default function useSwipeNav({ activeIndex, count, onIndexChange, disable
   const indexRef = useRef(activeIndex);
   const initialIndexRef = useRef(activeIndex);
   const onIndexChangeRef = useRef(onIndexChange);
+  const disabledRef = useRef(disabled);
   const trackRef = useRef(null);
+
+  // Keep modal gesture-locking current without changing Embla's options. A
+  // changing options object makes Embla re-initialize, which can interrupt a
+  // programmatic tab transition and leave the rail between two snap points.
+  disabledRef.current = disabled;
 
   useEffect(() => {
     indexRef.current = activeIndex;
@@ -23,6 +29,8 @@ export default function useSwipeNav({ activeIndex, count, onIndexChange, disable
   }, [onIndexChange]);
 
   const watchDrag = useCallback((_api, event) => {
+    if (disabledRef.current) return false;
+
     const target = event.target;
     if (!(target instanceof Element)) return true;
 
@@ -44,8 +52,8 @@ export default function useSwipeNav({ activeIndex, count, onIndexChange, disable
     skipSnaps: false,
     slidesToScroll: 1,
     startIndex: initialIndexRef.current,
-    watchDrag: disabled ? false : watchDrag,
-  }), [disabled, watchDrag]);
+    watchDrag,
+  }), [watchDrag]);
 
   const [viewportRef, emblaApi] = useEmblaCarousel(options);
 
@@ -87,8 +95,12 @@ export default function useSwipeNav({ activeIndex, count, onIndexChange, disable
   }, [count, emblaApi]);
 
   useEffect(() => {
-    if (!emblaApi || emblaApi.selectedScrollSnap() === activeIndex) return;
+    if (!emblaApi) return;
     const reduceMotion = window.matchMedia(REDUCED_MOTION_QUERY).matches;
+
+    // selectedScrollSnap() changes before the rail has necessarily reached the
+    // selected page. Always reaffirm the target when app state changes so an
+    // interrupted tap/drag cannot strand the viewport between two pages.
     emblaApi.scrollTo(activeIndex, reduceMotion);
   }, [activeIndex, emblaApi]);
 

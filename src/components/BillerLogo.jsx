@@ -18,8 +18,8 @@ export default function BillerLogo({ biller = '', size = 38, className = '', sty
 
   const cleanKey = normalizeBillerName(biller);
   const catalogBiller = findBiller(biller);
-  const fileName = LOGO_MAP[cleanKey] || `${biller.trim()}.png`;
-  const logoSrc = catalogBiller?.logo || `/logos/${fileName}`;
+  const mappedFileName = LOGO_MAP[cleanKey];
+  const logoSrc = catalogBiller?.logo || (mappedFileName ? `/logos/${mappedFileName}` : null);
 
   useEffect(() => {
     setHasError(false);
@@ -53,7 +53,7 @@ export default function BillerLogo({ biller = '', size = 38, className = '', sty
     ...style,
   };
 
-  if (hasError || !biller) {
+  if (hasError || !logoSrc || !biller) {
     return (
       <div
         className={`biller-logo-fallback ${className}`}
