@@ -154,7 +154,6 @@ function PugMascot({ compact, unpaidCount, onOpenBills }) {
         onOpenBills();
       }}
       aria-label={`${billStatus}. Open Bills.`}
-      data-swipe-lock
     >
       <span className="pug-mascot-art" aria-hidden="true">
         <span className="pug-mascot-halo" />
@@ -425,7 +424,6 @@ export default function IosDashboard(props) {
                     event.currentTarget.blur();
                     viewBills();
                   }}
-                  data-swipe-lock
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                     <AlertCircle size={18} style={{ color: 'var(--warning)', flexShrink: 0 }} />
