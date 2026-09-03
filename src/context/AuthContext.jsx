@@ -5,6 +5,9 @@ import { AuthContext } from './auth';
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(() => {
+    return typeof window !== 'undefined' && window.location.hash.includes('type=recovery');
+  });
 
   useEffect(() => {
     // Check active sessions and sets the user
@@ -13,8 +16,11 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     });
 
-    // Listen for changes on auth state (logged in, signed out, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // Listen for changes on auth state (logged in, signed out, password recovery, etc.)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true);
+      }
       setUser(session?.user ?? null);
       setLoading(false);
     });
@@ -23,8 +29,9 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider value={{ user, loading, isPasswordRecovery, setIsPasswordRecovery }}>
       {!loading && children}
     </AuthContext.Provider>
   );
 };
+

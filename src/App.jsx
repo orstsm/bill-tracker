@@ -1,9 +1,10 @@
 import { useAuth } from './context/auth';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import SetNewPasswordModal from './components/SetNewPasswordModal';
 
 function App() {
-  const { user, loading } = useAuth();
+  const { user, loading, isPasswordRecovery, setIsPasswordRecovery } = useAuth();
 
   if (loading) {
     return (
@@ -14,8 +15,14 @@ function App() {
   }
 
   return (
-    user ? <Dashboard /> : <Login />
+    <>
+      {user ? <Dashboard /> : <Login />}
+      {isPasswordRecovery && (
+        <SetNewPasswordModal onClose={() => setIsPasswordRecovery(false)} />
+      )}
+    </>
   );
 }
 
 export default App;
+
