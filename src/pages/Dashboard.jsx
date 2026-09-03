@@ -449,13 +449,21 @@ export default function Dashboard() {
             const bill = dashboardData.currentBills.find(b => b.id === billId);
             const newNet = netPosition - (bill && !(bill.channel || '').toUpperCase().includes('CC') ? Number(bill.amount) : 0);
             
-            fetch('/api/telegram', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                message: `🎉 All <b>${dashboardData.appActiveMonth}</b> bills have been paid!\n\nYour total available cash is <b>₱${newNet.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>.\n\nCheck the app to review!`
-              })
-            }).catch(console.error);
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData?.session?.access_token;
+
+            if (token) {
+              fetch('/api/telegram', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                  message: `🎉 All <b>${dashboardData.appActiveMonth}</b> bills have been paid!\n\nYour total available cash is <b>₱${newNet.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>.\n\nCheck the app to review!`
+                })
+              }).catch(console.error);
+            }
           }
 
           fetchDashboardData(true);
