@@ -79,7 +79,7 @@ export default function Dashboard() {
 
   const navigateToTab = useCallback((tab) => {
     const nextIndex = TAB_ORDER.indexOf(tab);
-    if (nextIndex >= 0) scrollToIndex(nextIndex, true);
+    if (nextIndex >= 0) scrollToIndex(nextIndex, false);
     switchTab(tab);
   }, [scrollToIndex, switchTab]);
 

@@ -399,7 +399,7 @@ export default function IosDashboard(props) {
 
   const editWeeklyBudget = () => {
     setDetailSheet(null);
-    switchTab('settings');
+    navigateToTab('settings');
     window.setTimeout(() => startEditingField('weeklyBudget'), 180);
   };
 
@@ -673,7 +673,7 @@ export default function IosDashboard(props) {
         <nav className="mobile-bottom-nav" aria-label="Main navigation" data-no-swipe>
           <span className="tab-selection-indicator" aria-hidden="true" />
           {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
-            <button className="tab-button" type="button" key={id} aria-current={activeTab === id ? 'page' : undefined} onClick={() => switchTab(id)}>
+            <button className="tab-button" type="button" key={id} aria-current={activeTab === id ? 'page' : undefined} onClick={() => navigateToTab(id)}>
               <div style={{ position: 'relative', display: 'inline-flex' }}>
                 <Icon aria-hidden="true" />
                 {id === 'due' && actionItemsDue > 0 && (

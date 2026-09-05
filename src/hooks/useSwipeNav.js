@@ -60,28 +60,20 @@ export default function useSwipeNav({ activeIndex, count, onIndexChange, disable
   const resetNativeScroll = useCallback(() => {
     if (!emblaApi) return;
     const viewport = emblaApi.rootNode();
-    if (viewport.scrollLeft !== 0) viewport.scrollLeft = 0;
+    if (viewport && viewport.scrollLeft !== 0) viewport.scrollLeft = 0;
   }, [emblaApi]);
 
   const scrollToIndex = useCallback((nextIndex, jump = false) => {
     if (!emblaApi) return;
     const boundedIndex = Math.max(0, Math.min(count - 1, nextIndex));
-
-    // iOS Safari may natively scroll an overflow-hidden viewport to keep a
-    // tapped control in view while Embla is translating the rail. Clear that
-    // independent offset before and after direct navigation.
-    resetNativeScroll();
     emblaApi.scrollTo(boundedIndex, jump);
-    window.requestAnimationFrame(resetNativeScroll);
-  }, [count, emblaApi, resetNativeScroll]);
+  }, [count, emblaApi]);
 
   useEffect(() => {
     if (!emblaApi) return undefined;
 
     const viewport = emblaApi.rootNode();
-    const shell = viewport.closest('.app-shell');
-
-    const handleNativeScroll = () => resetNativeScroll();
+    const shell = viewport?.closest('.app-shell');
 
     const updateProgress = () => {
       const progress = Math.max(0, Math.min(1, emblaApi.scrollProgress()));
@@ -97,10 +89,12 @@ export default function useSwipeNav({ activeIndex, count, onIndexChange, disable
       onIndexChangeRef.current(selectedIndex);
     };
 
-    const handleSettle = () => updateProgress();
+    const handleSettle = () => {
+      updateProgress();
+      resetNativeScroll();
+    };
 
     updateProgress();
-    viewport.addEventListener('scroll', handleNativeScroll, { passive: true });
     emblaApi
       .on('scroll', updateProgress)
       .on('select', handleSelect)
@@ -108,7 +102,6 @@ export default function useSwipeNav({ activeIndex, count, onIndexChange, disable
       .on('settle', handleSettle);
 
     return () => {
-      viewport.removeEventListener('scroll', handleNativeScroll);
       emblaApi
         .off('scroll', updateProgress)
         .off('select', handleSelect)
@@ -118,13 +111,10 @@ export default function useSwipeNav({ activeIndex, count, onIndexChange, disable
   }, [count, emblaApi, resetNativeScroll]);
 
   useEffect(() => {
-    if (!emblaApi || emblaApi.selectedScrollSnap() === activeIndex) {
-      resetNativeScroll();
-      return;
-    }
+    if (!emblaApi || emblaApi.selectedScrollSnap() === activeIndex) return;
     const reduceMotion = window.matchMedia(REDUCED_MOTION_QUERY).matches;
     scrollToIndex(activeIndex, reduceMotion);
-  }, [activeIndex, emblaApi, resetNativeScroll, scrollToIndex]);
+  }, [activeIndex, emblaApi, scrollToIndex]);
 
   return { viewportRef, trackRef, scrollToIndex };
 }
