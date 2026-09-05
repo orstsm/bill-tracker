@@ -123,6 +123,7 @@ select:focus-visible {
   display: flex;
   will-change: transform;
   backface-visibility: hidden;
+  transform: translateZ(0);
   touch-action: pan-y pinch-zoom;
 }
 
@@ -137,6 +138,9 @@ select:focus-visible {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   padding: max(14px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) 34px max(18px, env(safe-area-inset-left));
+  contain: layout style paint;
+  content-visibility: auto;
+  contain-intrinsic-size: 100% 100dvh;
 }
 
 .app-page::-webkit-scrollbar { display: none; }
@@ -759,10 +763,8 @@ select:focus-visible {
   align-items: center;
   border: 1px solid var(--border-color);
   border-radius: 24px;
-  background: var(--elevated-bg);
+  background: var(--card-bg);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.13);
-  backdrop-filter: blur(24px) saturate(165%);
-  -webkit-backdrop-filter: blur(24px) saturate(165%);
 }
 
 .tab-selection-indicator {

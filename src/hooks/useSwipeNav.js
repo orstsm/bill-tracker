@@ -74,15 +74,21 @@ export default function useSwipeNav({ activeIndex, count, onIndexChange, disable
 
     const viewport = emblaApi.rootNode();
     const shell = viewport?.closest('.app-shell');
+    let rafId = 0;
 
-    const updateProgress = () => {
+    const writeProgress = () => {
+      rafId = 0;
       const progress = Math.max(0, Math.min(1, emblaApi.scrollProgress()));
       shell?.style.setProperty('--tab-progress', String(progress * Math.max(0, count - 1)));
     };
 
+    const scheduleProgress = () => {
+      if (!rafId) rafId = requestAnimationFrame(writeProgress);
+    };
+
     const handleSelect = () => {
       const selectedIndex = emblaApi.selectedScrollSnap();
-      updateProgress();
+      scheduleProgress();
       if (selectedIndex === indexRef.current) return;
 
       indexRef.current = selectedIndex;
@@ -90,22 +96,23 @@ export default function useSwipeNav({ activeIndex, count, onIndexChange, disable
     };
 
     const handleSettle = () => {
-      updateProgress();
+      scheduleProgress();
       resetNativeScroll();
     };
 
-    updateProgress();
+    writeProgress();
     emblaApi
-      .on('scroll', updateProgress)
+      .on('scroll', scheduleProgress)
       .on('select', handleSelect)
-      .on('reInit', updateProgress)
+      .on('reInit', scheduleProgress)
       .on('settle', handleSettle);
 
     return () => {
+      if (rafId) cancelAnimationFrame(rafId);
       emblaApi
-        .off('scroll', updateProgress)
+        .off('scroll', scheduleProgress)
         .off('select', handleSelect)
-        .off('reInit', updateProgress)
+        .off('reInit', scheduleProgress)
         .off('settle', handleSettle);
     };
   }, [count, emblaApi, resetNativeScroll]);

@@ -58,12 +58,14 @@ export default function Dashboard() {
 
   const switchTab = useCallback((tab) => {
     setActiveTab(tab);
-    setIsAddMenuOpen(false);
-    setIsAddBillerOpen(false);
-    setIsRemoveBillerOpen(false);
-    setIsWithdrawOpen(false);
-    setIsAddSubOpen(false);
-    setShowCloseMonthModal(false);
+    // Only touch modal state when a modal is actually open — avoids
+    // unnecessary React re-renders during swipe settle animations.
+    setIsAddMenuOpen((v) => v ? false : v);
+    setIsAddBillerOpen((v) => v ? false : v);
+    setIsRemoveBillerOpen((v) => v ? false : v);
+    setIsWithdrawOpen((v) => v ? false : v);
+    setIsAddSubOpen((v) => v ? false : v);
+    setShowCloseMonthModal((v) => v ? false : v);
   }, []);
 
   const anyModalOpen = isAddMenuOpen || isAddBillerOpen || isRemoveBillerOpen || isWithdrawOpen || isAddSubOpen || showCloseMonthModal || Boolean(detailSheet);
