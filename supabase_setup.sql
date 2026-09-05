@@ -92,3 +92,56 @@ CREATE INDEX IF NOT EXISTS idx_withdrawals_user_month ON public.withdrawals(user
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user_status ON public.subscriptions(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_settings_user_id ON public.settings(user_id);
 
+-- 7. Transactional Month-End Rollover RPC
+CREATE OR REPLACE FUNCTION public.close_month_rollover(
+  p_target_month TEXT,
+  p_new_savings NUMERIC,
+  p_rollover_id UUID DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  v_user_id UUID;
+  v_updated_bills INT := 0;
+  v_rollover_uuid UUID;
+BEGIN
+  v_user_id := auth.uid();
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  UPDATE public.bills
+  SET status = 'Paid', paid_date = now()
+  WHERE user_id = v_user_id
+    AND month = p_target_month
+    AND status != 'Paid';
+
+  GET DIAGNOSTICS v_updated_bills = ROW_COUNT;
+
+  INSERT INTO public.settings (user_id, savings_account_balance, monthly_income)
+  VALUES (v_user_id, p_new_savings, 0)
+  ON CONFLICT (user_id) 
+  DO UPDATE SET
+    savings_account_balance = EXCLUDED.savings_account_balance,
+    monthly_income = 0;
+
+  v_rollover_uuid := COALESCE(p_rollover_id, gen_random_uuid());
+  
+  INSERT INTO public.withdrawals (id, user_id, month, amount, reason, date)
+  VALUES (v_rollover_uuid, v_user_id, p_target_month, 0, 'ROLLOVER_' || p_target_month, now())
+  ON CONFLICT (id) DO NOTHING;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'target_month', p_target_month,
+    'bills_closed', v_updated_bills,
+    'new_savings', p_new_savings
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.close_month_rollover(TEXT, NUMERIC, UUID) TO authenticated;
+

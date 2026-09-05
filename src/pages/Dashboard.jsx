@@ -658,33 +658,48 @@ export default function Dashboard() {
     setShowCloseMonthModal(false);
     setPendingAutoRollover(null);
     try {
-      // 1. Mark all unpaid current bills for the target month as Paid
-      const billsToClose = dashboardData.currentBills.concat(dashboardData.earlyRolloverBills || []).concat(dashboardData.historyMonths[targetMonth] || []);
-      const unpaidBills = billsToClose.filter(b => b.month === targetMonth && b.status !== 'Paid');
-      
-      for (const bill of unpaidBills) {
-        await supabase.from('bills').update({ status: 'Paid', paid_date: new Date().toISOString() }).eq('id', bill.id);
-      }
-
-      // 2. Update savings to netPosition, reset income to 0 for the new month
       const currentNetPosition = netPosition;
-      const { data: existing } = await supabase.from('settings').select('id').eq('user_id', user.id).maybeSingle();
-      if (existing) {
-        await supabase.from('settings').update({ savings_account_balance: currentNetPosition, monthly_income: 0 }).eq('user_id', user.id);
-      } else {
-        await supabase.from('settings').upsert({ user_id: user.id, savings_account_balance: currentNetPosition, monthly_income: 0 }, { onConflict: 'user_id' });
-      }
+      const rolloverId = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : null;
 
-      // 3. Insert ROLLOVER placeholder to mark the month as closed
-      const rolloverId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : ('w_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9));
-      await supabase.from('withdrawals').upsert({
-        id: rolloverId,
-        month: targetMonth,
-        amount: 0,
-        reason: `ROLLOVER_${targetMonth}`,
-        date: new Date().toISOString(),
-        user_id: user.id
-      }, { onConflict: 'id' });
+      // 1. Try atomic PostgreSQL RPC first
+      const { error: rpcError } = await supabase.rpc('close_month_rollover', {
+        p_target_month: targetMonth,
+        p_new_savings: currentNetPosition,
+        p_rollover_id: rolloverId,
+      });
+
+      // 2. If RPC fails or is not yet deployed, fallback gracefully to client batch
+      if (rpcError) {
+        console.warn('RPC close_month_rollover unavailable or failed, falling back to client batch:', rpcError);
+
+        const billsToClose = dashboardData.currentBills
+          .concat(dashboardData.earlyRolloverBills || [])
+          .concat(dashboardData.historyMonths[targetMonth] || []);
+        const unpaidBills = billsToClose.filter(b => b.month === targetMonth && b.status !== 'Paid');
+        
+        for (const bill of unpaidBills) {
+          await supabase.from('bills').update({ status: 'Paid', paid_date: new Date().toISOString() }).eq('id', bill.id);
+        }
+
+        const { data: existing } = await supabase.from('settings').select('id').eq('user_id', user.id).maybeSingle();
+        if (existing) {
+          await supabase.from('settings').update({ savings_account_balance: currentNetPosition, monthly_income: 0 }).eq('user_id', user.id);
+        } else {
+          await supabase.from('settings').upsert({ user_id: user.id, savings_account_balance: currentNetPosition, monthly_income: 0 }, { onConflict: 'user_id' });
+        }
+
+        const fallbackRolloverId = rolloverId || ('w_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9));
+        await supabase.from('withdrawals').upsert({
+          id: fallbackRolloverId,
+          month: targetMonth,
+          amount: 0,
+          reason: `ROLLOVER_${targetMonth}`,
+          date: new Date().toISOString(),
+          user_id: user.id
+        }, { onConflict: 'id' });
+      }
 
       fetchDashboardData();
     } catch (e) {
