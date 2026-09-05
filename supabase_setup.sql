@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS public.settings (
   monthly_income NUMERIC DEFAULT 0,
   savings_account_balance NUMERIC DEFAULT 0,
   weekly_budget NUMERIC DEFAULT 5000,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  CONSTRAINT unique_settings_user_id UNIQUE (user_id)
 );
 
 ALTER TABLE public.settings
@@ -82,3 +83,12 @@ ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can manage their own subscriptions" ON public.subscriptions
   FOR ALL USING (auth.uid() = user_id);
+
+-- 6. Performance Indexes
+CREATE INDEX IF NOT EXISTS idx_bills_user_month ON public.bills(user_id, month);
+CREATE INDEX IF NOT EXISTS idx_bills_user_status ON public.bills(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_recurring_bills_user_id ON public.recurring_bills(user_id);
+CREATE INDEX IF NOT EXISTS idx_withdrawals_user_month ON public.withdrawals(user_id, month);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user_status ON public.subscriptions(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_settings_user_id ON public.settings(user_id);
+

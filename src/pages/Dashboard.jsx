@@ -84,6 +84,15 @@ export default function Dashboard() {
   }, [scrollToIndex, switchTab]);
 
   const handleLogout = async () => {
+    if (user?.id) {
+      localStorage.removeItem(`offline_dashboard_data_${user.id}`);
+      localStorage.removeItem(`offline_withdrawals_${user.id}`);
+      localStorage.removeItem(`offline_bill_updates_${user.id}`);
+      localStorage.removeItem(`weekly_budget:${user.id}`);
+    }
+    localStorage.removeItem('offline_dashboard_data');
+    localStorage.removeItem('offline_withdrawals');
+    localStorage.removeItem('offline_bill_updates');
     await supabase.auth.signOut();
   };
 
@@ -97,14 +106,14 @@ export default function Dashboard() {
       if (navigator.onLine) {
         try {
           const [sRes, bRes, wRes, subRes, rbRes] = await withTimeout(Promise.all([
-            supabase.from('settings').select('*').eq('user_id', user.id).single(),
+            supabase.from('settings').select('*').eq('user_id', user.id).maybeSingle(),
             supabase.from('bills').select('*').eq('user_id', user.id).order('id', { ascending: false }),
             supabase.from('withdrawals').select('*').eq('user_id', user.id),
             supabase.from('subscriptions').select('*').eq('user_id', user.id).order('renewal_date', { ascending: true }),
             supabase.from('recurring_bills').select('*').eq('user_id', user.id)
           ]), 5000);
 
-          if (sRes.error && sRes.error.code !== 'PGRST116') throw sRes.error;
+          if (sRes.error) throw sRes.error;
           if (bRes.error) throw bRes.error;
           if (wRes.error) throw wRes.error;
           if (subRes.error) throw subRes.error;
@@ -116,14 +125,16 @@ export default function Dashboard() {
           rbData = rbRes.data;
 
           fetchSuccess = true;
-          localStorage.setItem('offline_dashboard_data', JSON.stringify({ sData, bData, wData, subData: subRes.data, rbData: rbRes.data }));
+          const userCacheKey = `offline_dashboard_data_${user.id}`;
+          localStorage.setItem(userCacheKey, JSON.stringify({ sData, bData, wData, subData: subRes.data, rbData: rbRes.data }));
         } catch (e) {
           console.warn("Live fetch failed or timed out, falling back to cache", e);
         }
       }
 
       if (!fetchSuccess) {
-        const cache = JSON.parse(localStorage.getItem('offline_dashboard_data') || '{}');
+        const userCacheKey = `offline_dashboard_data_${user.id}`;
+        const cache = JSON.parse(localStorage.getItem(userCacheKey) || localStorage.getItem('offline_dashboard_data') || '{}');
         sData = cache.sData || null;
         bData = cache.bData || [];
         wData = cache.wData || [];
@@ -358,24 +369,68 @@ export default function Dashboard() {
 
   useEffect(() => {
     const handleOnline = async () => {
+      if (!user) return;
       try {
-        const queue = JSON.parse(localStorage.getItem('offline_withdrawals') || '[]');
-        if (queue.length > 0) {
-          console.log('Syncing offline withdrawals...', queue);
-          for (const item of queue) {
-            const payload = { amount: item.amount, reason: item.reason, month: item.month, user_id: item.user_id };
-            await supabase.from('withdrawals').insert(payload);
+        const withdrawalsKey = `offline_withdrawals_${user.id}`;
+        let queue = JSON.parse(localStorage.getItem(withdrawalsKey) || '[]');
+        if (queue.length === 0) {
+          const legacyQueue = JSON.parse(localStorage.getItem('offline_withdrawals') || '[]');
+          if (legacyQueue.length > 0) {
+            queue = legacyQueue;
+            localStorage.removeItem('offline_withdrawals');
           }
-          localStorage.removeItem('offline_withdrawals');
         }
 
-        const updatesQueue = JSON.parse(localStorage.getItem('offline_bill_updates') || '[]');
+        if (queue.length > 0) {
+          console.log('Syncing offline withdrawals...', queue);
+          const remainingQueue = [];
+          for (const item of queue) {
+            const payload = {
+              id: item.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : ('w_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9))),
+              amount: item.amount,
+              reason: item.reason,
+              month: item.month,
+              user_id: item.user_id || user.id,
+              date: item.date || new Date().toISOString()
+            };
+            const { error } = await supabase.from('withdrawals').upsert(payload, { onConflict: 'id' });
+            if (error) {
+              console.error('Failed to sync offline withdrawal:', error, item);
+              remainingQueue.push(item);
+            }
+          }
+          if (remainingQueue.length > 0) {
+            localStorage.setItem(withdrawalsKey, JSON.stringify(remainingQueue));
+          } else {
+            localStorage.removeItem(withdrawalsKey);
+          }
+        }
+
+        const billUpdatesKey = `offline_bill_updates_${user.id}`;
+        let updatesQueue = JSON.parse(localStorage.getItem(billUpdatesKey) || '[]');
+        if (updatesQueue.length === 0) {
+          const legacyUpdates = JSON.parse(localStorage.getItem('offline_bill_updates') || '[]');
+          if (legacyUpdates.length > 0) {
+            updatesQueue = legacyUpdates;
+            localStorage.removeItem('offline_bill_updates');
+          }
+        }
+
         if (updatesQueue.length > 0) {
           console.log('Syncing offline bill updates...', updatesQueue);
+          const remainingUpdates = [];
           for (const update of updatesQueue) {
-            await supabase.from('bills').update(update.payload).eq('id', update.billId);
+            const { error } = await supabase.from('bills').update(update.payload).eq('id', update.billId);
+            if (error) {
+              console.error('Failed to sync offline bill update:', error, update);
+              remainingUpdates.push(update);
+            }
           }
-          localStorage.removeItem('offline_bill_updates');
+          if (remainingUpdates.length > 0) {
+            localStorage.setItem(billUpdatesKey, JSON.stringify(remainingUpdates));
+          } else {
+            localStorage.removeItem(billUpdatesKey);
+          }
         }
 
         if (queue.length > 0 || updatesQueue.length > 0) fetchDashboardData(true);
@@ -391,10 +446,12 @@ export default function Dashboard() {
   }, [user, fetchDashboardData]);
 
   const updateLocalCache = (billId, payload) => {
-    const cache = JSON.parse(localStorage.getItem('offline_dashboard_data') || '{}');
+    if (!user?.id) return;
+    const cacheKey = `offline_dashboard_data_${user.id}`;
+    const cache = JSON.parse(localStorage.getItem(cacheKey) || localStorage.getItem('offline_dashboard_data') || '{}');
     if (cache.bData) {
       cache.bData = cache.bData.map(b => b.id === billId ? { ...b, ...payload } : b);
-      localStorage.setItem('offline_dashboard_data', JSON.stringify(cache));
+      localStorage.setItem(cacheKey, JSON.stringify(cache));
       // Trigger a silent re-fetch so UI updates instantly based on modified cache
       fetchDashboardData(true);
     }
@@ -421,9 +478,10 @@ export default function Dashboard() {
       }
 
       if (!success) {
-        const queue = JSON.parse(localStorage.getItem('offline_bill_updates') || '[]');
+        const queueKey = `offline_bill_updates_${user.id}`;
+        const queue = JSON.parse(localStorage.getItem(queueKey) || localStorage.getItem('offline_bill_updates') || '[]');
         queue.push({ billId, payload });
-        localStorage.setItem('offline_bill_updates', JSON.stringify(queue));
+        localStorage.setItem(queueKey, JSON.stringify(queue));
         updateLocalCache(billId, payload);
         alert("Network unreachable. Amount saved locally and will sync later.");
       }
@@ -473,9 +531,10 @@ export default function Dashboard() {
       }
 
       if (!success) {
-        const queue = JSON.parse(localStorage.getItem('offline_bill_updates') || '[]');
+        const queueKey = `offline_bill_updates_${user.id}`;
+        const queue = JSON.parse(localStorage.getItem(queueKey) || localStorage.getItem('offline_bill_updates') || '[]');
         queue.push({ billId, payload });
-        localStorage.setItem('offline_bill_updates', JSON.stringify(queue));
+        localStorage.setItem(queueKey, JSON.stringify(queue));
         updateLocalCache(billId, payload);
         alert("Network unreachable. Bill marked as paid locally and will sync later.");
       }
@@ -555,12 +614,12 @@ export default function Dashboard() {
 
     try {
       // Check if settings row exists
-      const { data: existing } = await supabase.from('settings').select('id').eq('user_id', user.id).single();
+      const { data: existing } = await supabase.from('settings').select('id').eq('user_id', user.id).maybeSingle();
       let saveResult;
       if (existing) {
         saveResult = await supabase.from('settings').update({ [column]: numVal }).eq('user_id', user.id);
       } else {
-        saveResult = await supabase.from('settings').insert({ user_id: user.id, [column]: numVal });
+        saveResult = await supabase.from('settings').upsert({ user_id: user.id, [column]: numVal }, { onConflict: 'user_id' });
       }
 
       if (saveResult.error) {
@@ -609,21 +668,23 @@ export default function Dashboard() {
 
       // 2. Update savings to netPosition, reset income to 0 for the new month
       const currentNetPosition = netPosition;
-      const { data: existing } = await supabase.from('settings').select('id').eq('user_id', user.id).single();
+      const { data: existing } = await supabase.from('settings').select('id').eq('user_id', user.id).maybeSingle();
       if (existing) {
         await supabase.from('settings').update({ savings_account_balance: currentNetPosition, monthly_income: 0 }).eq('user_id', user.id);
       } else {
-        await supabase.from('settings').insert({ user_id: user.id, savings_account_balance: currentNetPosition, monthly_income: 0 });
+        await supabase.from('settings').upsert({ user_id: user.id, savings_account_balance: currentNetPosition, monthly_income: 0 }, { onConflict: 'user_id' });
       }
 
       // 3. Insert ROLLOVER placeholder to mark the month as closed
-      await supabase.from('withdrawals').insert({
+      const rolloverId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : ('w_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9));
+      await supabase.from('withdrawals').upsert({
+        id: rolloverId,
         month: targetMonth,
         amount: 0,
         reason: `ROLLOVER_${targetMonth}`,
         date: new Date().toISOString(),
         user_id: user.id
-      });
+      }, { onConflict: 'id' });
 
       fetchDashboardData();
     } catch (e) {

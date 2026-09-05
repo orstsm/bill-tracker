@@ -22,7 +22,12 @@ export default function WithdrawModal({ onClose, onWithdraw, isEarlyRollover }) 
         return;
       }
 
+      const withdrawalId = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : ('w_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9));
+
       const payload = {
+        id: withdrawalId,
         month: currentMonth,
         amount: numAmount,
         reason: reason || 'Cash',
@@ -33,33 +38,40 @@ export default function WithdrawModal({ onClose, onWithdraw, isEarlyRollover }) 
       let success = false;
       if (navigator.onLine) {
         try {
-          const { error } = await withTimeout(supabase.from('withdrawals').insert(payload), 4000);
+          const { error } = await withTimeout(
+            supabase.from('withdrawals').upsert(payload, { onConflict: 'id' }),
+            4000
+          );
           if (error) throw error;
           
           if (isEarlyRollover) {
             // Because we already snapshotted the funds for the new month, 
             // a withdrawal tagged for the old calendar month must be manually deducted from the snapshot.
-            const { data: sData } = await supabase.from('settings').select('savings_account_balance').eq('user_id', user.id).single();
+            const { data: sData } = await supabase.from('settings').select('savings_account_balance').eq('user_id', user.id).maybeSingle();
             if (sData) {
               await supabase.from('settings').update({ savings_account_balance: sData.savings_account_balance - numAmount }).eq('user_id', user.id);
             }
           }
           
           success = true;
-        } catch {
-          console.warn("Live withdrawal log failed or timed out, falling back to offline queue");
+        } catch (err) {
+          console.warn("Live withdrawal log failed or timed out, falling back to offline queue", err);
         }
       }
       
       if (!success) {
-        const queue = JSON.parse(localStorage.getItem('offline_withdrawals') || '[]');
-        queue.push(payload);
-        localStorage.setItem('offline_withdrawals', JSON.stringify(queue));
+        const queueKey = `offline_withdrawals_${user.id}`;
+        const cacheKey = `offline_dashboard_data_${user.id}`;
+        const queue = JSON.parse(localStorage.getItem(queueKey) || localStorage.getItem('offline_withdrawals') || '[]');
+        if (!queue.some(item => item.id === payload.id)) {
+          queue.push(payload);
+        }
+        localStorage.setItem(queueKey, JSON.stringify(queue));
         
-        const cache = JSON.parse(localStorage.getItem('offline_dashboard_data') || '{}');
+        const cache = JSON.parse(localStorage.getItem(cacheKey) || localStorage.getItem('offline_dashboard_data') || '{}');
         if (cache.wData) {
           cache.wData.push(payload);
-          localStorage.setItem('offline_dashboard_data', JSON.stringify(cache));
+          localStorage.setItem(cacheKey, JSON.stringify(cache));
         }
         alert("Network unreachable. Withdrawal saved locally and will sync later.");
       }
