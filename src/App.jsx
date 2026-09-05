@@ -1,7 +1,9 @@
+import { lazy, Suspense } from 'react';
 import { useAuth } from './context/auth';
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
 import SetNewPasswordModal from './components/SetNewPasswordModal';
+
+const Dashboard = lazy(() => import('./pages/Dashboard'));
 
 function App() {
   const { user, loading, isPasswordRecovery, setIsPasswordRecovery } = useAuth();
@@ -16,7 +18,19 @@ function App() {
 
   return (
     <>
-      {user ? <Dashboard /> : <Login />}
+      {user ? (
+        <Suspense
+          fallback={
+            <div className="loading-screen" aria-label="Loading Dashboard">
+              <div className="loading-spinner" />
+            </div>
+          }
+        >
+          <Dashboard />
+        </Suspense>
+      ) : (
+        <Login />
+      )}
       {isPasswordRecovery && (
         <SetNewPasswordModal onClose={() => setIsPasswordRecovery(false)} />
       )}
