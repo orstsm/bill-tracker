@@ -264,10 +264,11 @@ export default function IosDashboard(props) {
   useVisualViewport();
   const [billsOverviewExpanded, setBillsOverviewExpanded] = useState(false);
   const billsOverviewRef = useRef(null);
+  const pendingBillFocusRef = useRef(null);
+  const pendingSettingsEditRef = useRef(null);
 
   const {
     activeTab,
-    switchTab,
     navigateToTab,
     homeTab,
     setHomeTab,
@@ -330,7 +331,7 @@ export default function IosDashboard(props) {
     [netPosition, remainingMondays, settings.weeklyBudget]
   );
 
-  const { dueBills, dueRolloverBills, urgentBills, dueSubscriptions, unpaidCurrentBills, attentionMessage } = useMemo(() => {
+  const { urgentBills, dueSubscriptions, unpaidCurrentBills, attentionMessage } = useMemo(() => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
 
@@ -368,8 +369,6 @@ export default function IosDashboard(props) {
     const _attentionMessage = getAttentionMessage(_urgentBills, _dueSubscriptions);
 
     return {
-      dueBills: _dueBills,
-      dueRolloverBills: _dueRolloverBills,
       urgentBills: _urgentBills,
       dueSubscriptions: _dueSubscriptions,
       unpaidCurrentBills: _unpaidCurrentBills,
@@ -395,6 +394,20 @@ export default function IosDashboard(props) {
     return () => document.removeEventListener('pointerdown', collapseWhenClickingOutside);
   }, [activeTab, billsOverviewExpanded]);
 
+  useEffect(() => {
+    if (activeTab === 'due' && pendingBillFocusRef.current) {
+      const billId = pendingBillFocusRef.current;
+      pendingBillFocusRef.current = null;
+      window.requestAnimationFrame(() => setScrollToBillId(billId));
+    }
+
+    if (activeTab === 'settings' && pendingSettingsEditRef.current) {
+      const field = pendingSettingsEditRef.current;
+      pendingSettingsEditRef.current = null;
+      window.requestAnimationFrame(() => startEditingField(field));
+    }
+  }, [activeTab, setScrollToBillId, startEditingField]);
+
   const isMonthListExpanded = currentMonthExpanded || earlyRolloverExpanded;
 
   const billListProps = {
@@ -407,14 +420,22 @@ export default function IosDashboard(props) {
 
   const viewBills = () => {
     setDetailSheet(null);
+    pendingBillFocusRef.current = firstDueBillId;
     navigateToTab('due');
-    if (firstDueBillId) window.setTimeout(() => setScrollToBillId(firstDueBillId), 340);
+    if (activeTab === 'due' && firstDueBillId) {
+      pendingBillFocusRef.current = null;
+      window.requestAnimationFrame(() => setScrollToBillId(firstDueBillId));
+    }
   };
 
   const editWeeklyBudget = () => {
     setDetailSheet(null);
+    pendingSettingsEditRef.current = 'weeklyBudget';
     navigateToTab('settings');
-    window.setTimeout(() => startEditingField('weeklyBudget'), 180);
+    if (activeTab === 'settings') {
+      pendingSettingsEditRef.current = null;
+      window.requestAnimationFrame(() => startEditingField('weeklyBudget'));
+    }
   };
 
   return (

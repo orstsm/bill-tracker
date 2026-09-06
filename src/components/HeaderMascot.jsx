@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const PHASES = {
   'ready-right': { next: 'run-right', duration: 80 },
@@ -17,6 +17,8 @@ const PHASE_IMAGES = {
 };
 
 export default function HeaderMascot({ active = true }) {
+  const containerRef = useRef(null);
+  const runnerRef = useRef(null);
   const [phase, setPhase] = useState('ready-right');
   const [reduceMotion] = useState(() => (
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -34,9 +36,25 @@ export default function HeaderMascot({ active = true }) {
     return () => window.clearTimeout(timer);
   }, [active, phase, reduceMotion]);
 
+  useEffect(() => {
+    const container = containerRef.current;
+    const runner = runnerRef.current;
+    if (!container || !runner) return undefined;
+
+    const updateDistance = () => {
+      const distance = Math.max(0, container.clientWidth - runner.offsetWidth);
+      runner.style.setProperty('--billy-run-distance', `${distance}px`);
+    };
+
+    updateDistance();
+    const observer = new ResizeObserver(updateDistance);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
   const handleTransitionEnd = (event) => {
     if (!active) return;
-    if (event.propertyName !== 'left') return;
+    if (event.propertyName !== 'transform') return;
     if (phase === 'run-right') setPhase('rest-right');
     if (phase === 'run-left') setPhase('rest-left');
   };
@@ -45,8 +63,9 @@ export default function HeaderMascot({ active = true }) {
   const image = reduceMotion ? PHASE_IMAGES['ready-right'] : (PHASE_IMAGES[visiblePhase] || PHASE_IMAGES['ready-right']);
 
   return (
-    <span className="header-mascot-inline" aria-hidden="true">
+    <span className="header-mascot-inline" aria-hidden="true" ref={containerRef}>
       <span
+        ref={runnerRef}
         className={`header-mascot-runner is-${visiblePhase}`}
         onTransitionEnd={handleTransitionEnd}
         data-billy-phase={visiblePhase}

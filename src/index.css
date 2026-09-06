@@ -631,8 +631,10 @@ select:focus-visible {
   inset: 0 auto 0 0;
   width: 74px;
   height: 48px;
-  will-change: left;
+  --billy-run-distance: 0px;
+  will-change: transform;
   left: 0;
+  transform: translate3d(0, 0, 0);
   transition: none;
 }
 
@@ -649,23 +651,30 @@ select:focus-visible {
 }
 
 .header-mascot-runner.is-run-right {
-  left: calc(100% - 74px);
-  transition: left 1.6s linear;
+  transform: translate3d(var(--billy-run-distance), 0, 0);
+  transition: transform 1.6s linear;
 }
 
 .header-mascot-runner.is-rest-right {
-  left: calc(100% - 74px);
+  transform: translate3d(var(--billy-run-distance), 0, 0);
 }
 
 .header-mascot-runner.is-run-left {
-  left: 0;
-  transition: left 1.6s linear;
+  transform: translate3d(0, 0, 0);
+  transition: transform 1.6s linear;
 }
 
 .header-mascot-runner.is-rest-left,
 .header-mascot-runner.is-ready-right,
 .header-mascot-runner.is-reduced-motion {
-  left: 0;
+  transform: translate3d(0, 0, 0);
+}
+
+.app-shell.is-tab-swiping .pug-mascot-art::after,
+.app-shell.is-tab-swiping .pug-mascot-halo,
+.app-shell.is-tab-swiping .pug-mascot img,
+.app-shell.is-tab-swiping .pug-mascot-check {
+  animation-play-state: paused;
 }
 
 @media (prefers-reduced-motion: reduce) {

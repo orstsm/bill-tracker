@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { Bar } from 'react-chartjs-2';
 import {
   BarElement,
@@ -17,11 +17,14 @@ const money = (value) => `₱${Number(value || 0).toLocaleString('en-PH', {
   maximumFractionDigits: 2,
 })}`;
 
-export default function CashLog({ withdrawals }) {
-  const sortedMonths = sortMonthsDescending(Object.keys(withdrawals || {}));
+function CashLog({ withdrawals }) {
+  const sortedMonths = useMemo(
+    () => sortMonthsDescending(Object.keys(withdrawals || {})),
+    [withdrawals]
+  );
   const [expandedMonth, setExpandedMonth] = useState(sortedMonths[0] || null);
-  const chartMonths = sortedMonths.slice(0, 6).reverse();
-  const isDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  const chartMonths = useMemo(() => sortedMonths.slice(0, 6).reverse(), [sortedMonths]);
+  const isDark = useMemo(() => window.matchMedia?.('(prefers-color-scheme: dark)').matches, []);
 
   const chartData = useMemo(() => ({
     labels: chartMonths.map((month) => month.replace(/\s\d{4}$/, '')),
@@ -121,3 +124,5 @@ export default function CashLog({ withdrawals }) {
     </div>
   );
 }
+
+export default memo(CashLog);

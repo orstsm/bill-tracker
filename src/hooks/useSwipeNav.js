@@ -64,11 +64,19 @@ export default function useSwipeNav({ activeIndex, count, onIndexChange, disable
     if (viewport && viewport.scrollLeft !== 0) viewport.scrollLeft = 0;
   }, [emblaApi]);
 
+  const setSwipingClass = useCallback((isSwiping) => {
+    const shell = trackRef.current?.closest('.app-shell');
+    shell?.classList.toggle('is-tab-swiping', isSwiping);
+  }, []);
+
   const scrollToIndex = useCallback((nextIndex, jump = false) => {
     if (!emblaApi) return;
     const boundedIndex = Math.max(0, Math.min(count - 1, nextIndex));
+    if (!jump && boundedIndex !== emblaApi.selectedScrollSnap()) {
+      setSwipingClass(true);
+    }
     emblaApi.scrollTo(boundedIndex, jump);
-  }, [count, emblaApi]);
+  }, [count, emblaApi, setSwipingClass]);
 
   useEffect(() => {
     if (!emblaApi) return undefined;
@@ -76,7 +84,6 @@ export default function useSwipeNav({ activeIndex, count, onIndexChange, disable
     const viewport = emblaApi.rootNode();
     const shell = viewport?.closest('.app-shell');
     const indicator = shell?.querySelector('.tab-selection-indicator');
-    const nav = shell?.querySelector('.mobile-bottom-nav');
 
     const updateProgress = () => {
       const progress = Math.max(0, Math.min(1, emblaApi.scrollProgress()));
@@ -84,37 +91,42 @@ export default function useSwipeNav({ activeIndex, count, onIndexChange, disable
       if (indicator) {
         indicator.style.transform = `translate3d(${tabProgress * 100}%, 0, 0)`;
       }
-      if (nav) {
-        nav.style.setProperty('--tab-progress', String(tabProgress));
-      }
     };
 
-    // Notify React on select (when Embla commits to a snap target).
-    // The re-render is kept cheap by memoizing expensive child computations.
-    const handleSelect = () => {
-      const selectedIndex = emblaApi.selectedScrollSnap();
+    const handleScroll = () => {
+      shell?.classList.add('is-tab-swiping');
       updateProgress();
+    };
+
+    // Keep direct manipulation outside React while the rail is moving. Embla's
+    // select event fires before the snap animation has finished, so committing
+    // activeTab here would reconcile all four pages during the animation.
+    const handleSelect = () => {
+      updateProgress();
+    };
+
+    const handleSettle = () => {
+      updateProgress();
+      resetNativeScroll();
+      shell?.classList.remove('is-tab-swiping');
+
+      const selectedIndex = emblaApi.selectedScrollSnap();
       if (selectedIndex === indexRef.current) return;
 
       indexRef.current = selectedIndex;
       onIndexChangeRef.current(selectedIndex);
     };
 
-    const handleSettle = () => {
-      updateProgress();
-      resetNativeScroll();
-    };
-
     updateProgress();
     emblaApi
-      .on('scroll', updateProgress)
+      .on('scroll', handleScroll)
       .on('select', handleSelect)
       .on('reInit', updateProgress)
       .on('settle', handleSettle);
 
     return () => {
       emblaApi
-        .off('scroll', updateProgress)
+        .off('scroll', handleScroll)
         .off('select', handleSelect)
         .off('reInit', updateProgress)
         .off('settle', handleSettle);

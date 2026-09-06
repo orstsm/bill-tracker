@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/auth';
 import { supabase } from '../lib/supabase';
 import { getCurrentMonthStr, getNextMonthStr, parseDueDateLogic, withTimeout, getMondaysUntilNextFifth } from '../lib/utils';
@@ -80,8 +80,7 @@ export default function Dashboard() {
   const navigateToTab = useCallback((tab) => {
     const nextIndex = TAB_ORDER.indexOf(tab);
     if (nextIndex >= 0) scrollToIndex(nextIndex, false);
-    switchTab(tab);
-  }, [scrollToIndex, switchTab]);
+  }, [scrollToIndex]);
 
   const handleLogout = async () => {
     if (user?.id) {
@@ -733,7 +732,6 @@ export default function Dashboard() {
   return (
     <IosDashboard
       activeTab={activeTab}
-      switchTab={switchTab}
       navigateToTab={navigateToTab}
       homeTab={homeTab}
       setHomeTab={setHomeTab}
