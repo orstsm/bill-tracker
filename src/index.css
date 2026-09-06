@@ -154,8 +154,13 @@ select:focus-visible {
   margin-bottom: 16px;
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
+}
+
+.notice-button > svg {
+  flex: 0 0 auto;
+  color: var(--warning);
 }
 
 .page-header-copy {
@@ -613,6 +618,30 @@ select:focus-visible {
 .pug-mascot.is-compact .pug-mascot-copy { align-items: flex-start; text-align: left; }
 .pug-mascot.is-compact .pug-mascot-copy strong { font-size: 13px; }
 .pug-mascot.is-compact .pug-mascot-copy > span { font-size: 11px; }
+
+.pug-mascot.is-inline {
+  min-height: 96px;
+  margin-top: 2px;
+  padding: 4px 10px;
+  flex-direction: row;
+  justify-content: center;
+  gap: 14px;
+  text-align: left;
+}
+
+.pug-mascot.is-inline .pug-mascot-art {
+  width: clamp(74px, 11vh, 96px);
+}
+
+.pug-mascot.is-inline .pug-mascot-copy {
+  max-width: 190px;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+}
+
+.pug-mascot.is-inline .pug-mascot-copy strong { font-size: 15px; }
+.pug-mascot.is-inline .pug-mascot-copy > span { font-size: 12px; }
 
 .header-mascot-inline {
   position: relative;

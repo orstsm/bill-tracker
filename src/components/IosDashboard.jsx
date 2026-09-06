@@ -39,21 +39,17 @@ const money = (value) => `₱${Number(value || 0).toLocaleString('en-PH', {
   maximumFractionDigits: 2,
 })}`;
 
-const summarizeAttentionGroup = (names, singular, plural) => {
-  const validNames = names.filter(Boolean);
-  if (validNames.length === 0) return '';
-  if (validNames.length === 1) return `${validNames[0]} ${singular}`;
-  if (validNames.length === 2) return `${validNames[0]} and ${validNames[1]} ${plural}`;
-  return `${validNames[0]} and ${validNames.length - 1} other ${plural}`;
-};
-
 const getAttentionMessage = (bills, subscriptions) => {
-  const billSummary = summarizeAttentionGroup(bills.map((bill) => bill.biller), 'bill', 'bills');
-  const subscriptionSummary = summarizeAttentionGroup(subscriptions.map((subscription) => subscription.name), 'subscription', 'subscriptions');
+  const names = [...new Set([
+    ...bills.map((bill) => bill.biller),
+    ...subscriptions.map((subscription) => subscription.name),
+  ].filter(Boolean))];
 
-  if (billSummary && subscriptionSummary) return `${billSummary} plus ${subscriptionSummary} need attention`;
-  if (billSummary) return `${billSummary} ${bills.length === 1 ? 'needs' : 'need'} attention`;
-  return `${subscriptionSummary} ${subscriptions.length === 1 ? 'needs' : 'need'} attention`;
+  if (names.length === 0) return '';
+  const list = names.length === 1
+    ? names[0]
+    : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+  return `${list} ${names.length === 1 ? 'needs' : 'need'} attention!`;
 };
 
 function PageHeader({ title, eyebrow, action, actionLabel = 'Add', mascot = false, mascotActive = false }) {
@@ -140,14 +136,14 @@ function EmptyState({ title, detail }) {
   );
 }
 
-function PugMascot({ compact, unpaidCount, onOpenBills }) {
+function PugMascot({ compact, inline = false, unpaidCount, onOpenBills }) {
   const billStatus = unpaidCount > 0
-    ? `${unpaidCount} bill${unpaidCount === 1 ? '' : 's'} still on the list`
-    : 'Every bill is checked off';
+    ? `${unpaidCount} unpaid bill${unpaidCount === 1 ? '' : 's'} still on the list!`
+    : 'Every bill is checked off!';
 
   return (
     <button
-      className={`pug-mascot${compact ? ' is-compact' : ''}`}
+      className={`pug-mascot${compact ? ' is-compact' : ''}${inline ? ' is-inline' : ''}`}
       type="button"
       onClick={(event) => {
         event.currentTarget.blur();
@@ -161,7 +157,7 @@ function PugMascot({ compact, unpaidCount, onOpenBills }) {
         <span className="pug-mascot-check"><CheckCircle2 /></span>
       </span>
       <span className="pug-mascot-copy">
-        <strong>Billy is on it</strong>
+        <strong>Billy is on it!</strong>
         <span>{billStatus} <span aria-hidden="true">›</span></span>
       </span>
     </button>
@@ -460,11 +456,8 @@ export default function IosDashboard(props) {
                     viewBills();
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                    <AlertCircle size={18} style={{ color: 'var(--warning)', flexShrink: 0 }} />
-                    <span className="notice-copy">{attentionMessage}</span>
-                  </div>
-                  <span>Review ›</span>
+                  <AlertCircle size={18} aria-hidden="true" />
+                  <span className="notice-copy">{attentionMessage}</span>
                 </button>
               )}
 
@@ -510,6 +503,7 @@ export default function IosDashboard(props) {
                   {!isMonthListExpanded && (
                     <PugMascot
                       compact={false}
+                      inline={actionItemsDue > 0}
                       unpaidCount={unpaidActiveCount}
                       onOpenBills={viewBills}
                     />
@@ -698,7 +692,6 @@ export default function IosDashboard(props) {
                   </button>
                 </div>
               </section>
-              <p style={{ color: 'var(--text-tertiary)', textAlign: 'center', fontSize: 12, marginTop: 28 }}>Bill Tracker · Your data remains in your existing Supabase account.</p>
             </div>
           </section>
         </div>
