@@ -7,6 +7,13 @@ const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
  * Native-feeling page navigation powered by Embla's direct-manipulation
  * physics. The page rail and tab indicator share the same scroll progress so
  * they always remain visually connected to the user's finger.
+ *
+ * PERF: React state (activeTab) is updated on 'settle', NOT 'select'.
+ * The 'select' event fires mid-animation; updating React state there triggers
+ * a full re-render of the component tree (toggling inert/aria-hidden on 4
+ * page sections) which blocks the main thread and drops frames.  The tab
+ * indicator follows the finger purely via the --tab-progress CSS custom
+ * property, so React doesn't need to know the new tab until settle.
  */
 export default function useSwipeNav({ activeIndex, count, onIndexChange, disabled = false }) {
   const indexRef = useRef(activeIndex);
@@ -15,9 +22,6 @@ export default function useSwipeNav({ activeIndex, count, onIndexChange, disable
   const disabledRef = useRef(disabled);
   const trackRef = useRef(null);
 
-  // Keep modal gesture-locking current without changing Embla's options. A
-  // changing options object makes Embla re-initialize, which can interrupt a
-  // programmatic tab transition and leave the rail between two snap points.
   disabledRef.current = disabled;
 
   useEffect(() => {
@@ -34,9 +38,6 @@ export default function useSwipeNav({ activeIndex, count, onIndexChange, disable
     const target = event.target;
     if (!(target instanceof Element)) return true;
 
-    // Form controls and explicitly locked regions own their gestures. Normal
-    // buttons, links, cards, and rows remain swipeable; Embla suppresses their
-    // click only when the movement becomes a real drag.
     return !target.closest('input, select, textarea, [contenteditable="true"], [role="slider"], [data-swipe-lock]');
   }, []);
 
@@ -86,18 +87,25 @@ export default function useSwipeNav({ activeIndex, count, onIndexChange, disable
       if (!rafId) rafId = requestAnimationFrame(writeProgress);
     };
 
+    // On select, ONLY update the internal ref + tab indicator. No React
+    // state change here — that would trigger a re-render mid-animation.
     const handleSelect = () => {
-      const selectedIndex = emblaApi.selectedScrollSnap();
+      indexRef.current = emblaApi.selectedScrollSnap();
       scheduleProgress();
-      if (selectedIndex === indexRef.current) return;
-
-      indexRef.current = selectedIndex;
-      onIndexChangeRef.current(selectedIndex);
     };
 
+    // On settle (animation complete), THEN notify React so it can update
+    // activeTab, inert attributes, aria-hidden, etc. at leisure.
     const handleSettle = () => {
       scheduleProgress();
       resetNativeScroll();
+
+      const settledIndex = emblaApi.selectedScrollSnap();
+      if (settledIndex !== indexRef.current) {
+        indexRef.current = settledIndex;
+      }
+      // Always notify — React may be out of sync with Embla after a swipe.
+      onIndexChangeRef.current(settledIndex);
     };
 
     writeProgress();
