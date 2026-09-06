@@ -87,25 +87,20 @@ export default function useSwipeNav({ activeIndex, count, onIndexChange, disable
       if (!rafId) rafId = requestAnimationFrame(writeProgress);
     };
 
-    // On select, ONLY update the internal ref + tab indicator. No React
-    // state change here — that would trigger a re-render mid-animation.
+    // Notify React on select (when Embla commits to a snap target).
+    // The re-render is kept cheap by memoizing expensive child computations.
     const handleSelect = () => {
-      indexRef.current = emblaApi.selectedScrollSnap();
+      const selectedIndex = emblaApi.selectedScrollSnap();
       scheduleProgress();
+      if (selectedIndex === indexRef.current) return;
+
+      indexRef.current = selectedIndex;
+      onIndexChangeRef.current(selectedIndex);
     };
 
-    // On settle (animation complete), THEN notify React so it can update
-    // activeTab, inert attributes, aria-hidden, etc. at leisure.
     const handleSettle = () => {
       scheduleProgress();
       resetNativeScroll();
-
-      const settledIndex = emblaApi.selectedScrollSnap();
-      if (settledIndex !== indexRef.current) {
-        indexRef.current = settledIndex;
-      }
-      // Always notify — React may be out of sync with Embla after a swipe.
-      onIndexChangeRef.current(settledIndex);
     };
 
     writeProgress();

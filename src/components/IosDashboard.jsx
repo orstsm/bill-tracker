@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   Banknote,
@@ -325,43 +325,57 @@ export default function IosDashboard(props) {
     remainingMondays,
   } = props;
 
-  const projectedCash = calculateProjectedCash(netPosition, remainingMondays, settings.weeklyBudget);
+  const projectedCash = useMemo(
+    () => calculateProjectedCash(netPosition, remainingMondays, settings.weeklyBudget),
+    [netPosition, remainingMondays, settings.weeklyBudget]
+  );
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const { dueBills, dueRolloverBills, urgentBills, dueSubscriptions, unpaidCurrentBills, attentionMessage } = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
 
-  const dueBills = dashboardData.currentBills.filter((bill) => {
-    if (bill.status === 'Paid') return false;
-    const dueDate = parseDueDateLogic(bill.due_date, dashboardData.appActiveMonth);
-    if (!dueDate) return false;
-    const target = new Date(dueDate);
-    target.setHours(0, 0, 0, 0);
-    const diffDays = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return diffDays <= 7;
-  });
+    const _dueBills = dashboardData.currentBills.filter((bill) => {
+      if (bill.status === 'Paid') return false;
+      const dueDate = parseDueDateLogic(bill.due_date, dashboardData.appActiveMonth);
+      if (!dueDate) return false;
+      const target = new Date(dueDate);
+      target.setHours(0, 0, 0, 0);
+      const diffDays = Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      return diffDays <= 7;
+    });
 
-  const dueRolloverBills = (dashboardData.earlyRolloverBills || []).filter((bill) => {
-    if (bill.status === 'Paid') return false;
-    const dueDate = parseDueDateLogic(bill.due_date, dashboardData.earlyRolloverMonth);
-    if (!dueDate) return false;
-    const target = new Date(dueDate);
-    target.setHours(0, 0, 0, 0);
-    const diffDays = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return diffDays <= 7;
-  });
+    const _dueRolloverBills = (dashboardData.earlyRolloverBills || []).filter((bill) => {
+      if (bill.status === 'Paid') return false;
+      const dueDate = parseDueDateLogic(bill.due_date, dashboardData.earlyRolloverMonth);
+      if (!dueDate) return false;
+      const target = new Date(dueDate);
+      target.setHours(0, 0, 0, 0);
+      const diffDays = Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      return diffDays <= 7;
+    });
 
-  const urgentBills = [...dueRolloverBills, ...dueBills];
+    const _urgentBills = [..._dueRolloverBills, ..._dueBills];
 
-  const dueSubscriptions = (dashboardData.subscriptions || []).filter((sub) => {
-    if (sub.status !== 'Active' || !sub.renewal_date) return false;
-    const renewal = new Date(sub.renewal_date);
-    renewal.setHours(0, 0, 0, 0);
-    const diffDays = Math.ceil((renewal.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return diffDays <= 5;
-  });
+    const _dueSubscriptions = (dashboardData.subscriptions || []).filter((sub) => {
+      if (sub.status !== 'Active' || !sub.renewal_date) return false;
+      const renewal = new Date(sub.renewal_date);
+      renewal.setHours(0, 0, 0, 0);
+      const diffDays = Math.ceil((renewal.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      return diffDays <= 5;
+    });
 
-  const unpaidCurrentBills = dashboardData.currentBills.filter((bill) => bill.status !== 'Paid');
-  const attentionMessage = getAttentionMessage(urgentBills, dueSubscriptions);
+    const _unpaidCurrentBills = dashboardData.currentBills.filter((bill) => bill.status !== 'Paid');
+    const _attentionMessage = getAttentionMessage(_urgentBills, _dueSubscriptions);
+
+    return {
+      dueBills: _dueBills,
+      dueRolloverBills: _dueRolloverBills,
+      urgentBills: _urgentBills,
+      dueSubscriptions: _dueSubscriptions,
+      unpaidCurrentBills: _unpaidCurrentBills,
+      attentionMessage: _attentionMessage,
+    };
+  }, [dashboardData]);
 
   useEffect(() => {
     if (activeTab !== 'due') {
