@@ -154,13 +154,8 @@ select:focus-visible {
   margin-bottom: 16px;
   display: flex;
   align-items: flex-end;
-  justify-content: flex-start;
+  justify-content: space-between;
   gap: 16px;
-}
-
-.notice-button > svg {
-  flex: 0 0 auto;
-  color: var(--warning);
 }
 
 .page-header-copy {
@@ -363,7 +358,7 @@ select:focus-visible {
   padding: 10px 14px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 10px;
   border: 0;
   border-radius: 14px;
@@ -372,6 +367,11 @@ select:focus-visible {
   background: color-mix(in srgb, var(--warning) 10%, var(--grouped-bg));
   font-size: 13px;
   font-weight: 650;
+}
+
+.notice-button > svg {
+  flex: 0 0 auto;
+  color: var(--warning);
 }
 
 .notice-copy {
