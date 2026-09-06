@@ -16,28 +16,33 @@ const PHASE_IMAGES = {
   'rest-left': '/mascot/billy-tired-left-v3.png',
 };
 
-export default function HeaderMascot() {
+export default function HeaderMascot({ active = true }) {
   const [phase, setPhase] = useState('ready-right');
   const [reduceMotion] = useState(() => (
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   ));
 
   useEffect(() => {
+    if (!active) {
+      setPhase('ready-right');
+      return undefined;
+    }
     if (reduceMotion) return undefined;
 
-    const { next, duration } = PHASES[phase];
-    const timer = window.setTimeout(() => setPhase(next), duration);
+    const current = PHASES[phase] || PHASES['ready-right'];
+    const timer = window.setTimeout(() => setPhase(current.next), current.duration);
     return () => window.clearTimeout(timer);
-  }, [phase, reduceMotion]);
+  }, [active, phase, reduceMotion]);
 
   const handleTransitionEnd = (event) => {
+    if (!active) return;
     if (event.propertyName !== 'left') return;
     if (phase === 'run-right') setPhase('rest-right');
     if (phase === 'run-left') setPhase('rest-left');
   };
 
-  const visiblePhase = reduceMotion ? 'reduced-motion' : phase;
-  const image = reduceMotion ? PHASE_IMAGES['ready-right'] : PHASE_IMAGES[phase];
+  const visiblePhase = reduceMotion ? 'reduced-motion' : (active ? phase : 'ready-right');
+  const image = reduceMotion ? PHASE_IMAGES['ready-right'] : (PHASE_IMAGES[visiblePhase] || PHASE_IMAGES['ready-right']);
 
   return (
     <span className="header-mascot-inline" aria-hidden="true">

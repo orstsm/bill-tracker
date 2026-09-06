@@ -56,14 +56,14 @@ const getAttentionMessage = (bills, subscriptions) => {
   return `${subscriptionSummary} ${subscriptions.length === 1 ? 'needs' : 'need'} attention`;
 };
 
-function PageHeader({ title, eyebrow, action, actionLabel = 'Add', mascot = false }) {
+function PageHeader({ title, eyebrow, action, actionLabel = 'Add', mascot = false, mascotActive = false }) {
   return (
     <header className={`page-header${mascot ? ' page-header-with-mascot' : ''}`}>
       <div className="page-header-copy">
         {eyebrow && <p className="page-eyebrow">{eyebrow}</p>}
         <div className="page-header-title-row">
           <h1 className="page-title">{title}</h1>
-          {mascot && <HeaderMascot />}
+          {mascot && <HeaderMascot active={mascotActive} />}
         </div>
       </div>
       {action && (
@@ -520,7 +520,7 @@ export default function IosDashboard(props) {
 
           <section className="app-page" aria-hidden={activeTab !== 'due'} inert={activeTab !== 'due' ? '' : undefined}>
             <div className="page-inner">
-              <PageHeader title="Bills" mascot={activeTab === 'due'} action={() => setIsAddMenuOpen(true)} actionLabel="Quick actions" />
+              <PageHeader title="Bills" mascot mascotActive={activeTab === 'due'} action={() => setIsAddMenuOpen(true)} actionLabel="Quick actions" />
               <div className="action-row" data-no-swipe>
                 <button className="action-button secondary" type="button" onClick={() => setIsRemoveBillerOpen(true)}><FileText size={17} /> Manage Billers</button>
                 <button className="action-button" type="button" onClick={() => setIsWithdrawOpen(true)}><MinusCircle size={17} /> Withdraw Cash</button>
@@ -595,7 +595,7 @@ export default function IosDashboard(props) {
 
           <section className="app-page" aria-hidden={activeTab !== 'cashLog'} inert={activeTab !== 'cashLog' ? '' : undefined}>
             <div className="page-inner">
-              <PageHeader title="Activity" mascot={activeTab === 'cashLog'} eyebrow="Cash flow and completed months" action={() => setIsWithdrawOpen(true)} actionLabel="Log a cash withdrawal" />
+              <PageHeader title="Activity" mascot mascotActive={activeTab === 'cashLog'} eyebrow="Cash flow and completed months" action={() => setIsWithdrawOpen(true)} actionLabel="Log a cash withdrawal" />
               <Suspense fallback={<div className="surface empty-state"><div className="loading-spinner" aria-label="Loading activity" /></div>}>
                 <CashLog withdrawals={dashboardData.recentWithdrawals} />
               </Suspense>
@@ -614,7 +614,7 @@ export default function IosDashboard(props) {
 
           <section className="app-page" aria-hidden={activeTab !== 'settings'} inert={activeTab !== 'settings' ? '' : undefined}>
             <div className="page-inner">
-              <PageHeader title="Settings" mascot={activeTab === 'settings'} eyebrow="Account and monthly plan" />
+              <PageHeader title="Settings" mascot mascotActive={activeTab === 'settings'} eyebrow="Account and monthly plan" />
               <section className="settings-group">
                 <p className="settings-caption">Starting funds</p>
                 <div className="surface">

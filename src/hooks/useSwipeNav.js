@@ -48,7 +48,7 @@ export default function useSwipeNav({ activeIndex, count, onIndexChange, disable
     containScroll: 'trimSnaps',
     dragFree: false,
     dragThreshold: 9,
-    duration: 24,
+    duration: 18,
     loop: false,
     skipSnaps: false,
     slidesToScroll: 1,
@@ -75,23 +75,25 @@ export default function useSwipeNav({ activeIndex, count, onIndexChange, disable
 
     const viewport = emblaApi.rootNode();
     const shell = viewport?.closest('.app-shell');
-    let rafId = 0;
+    const indicator = shell?.querySelector('.tab-selection-indicator');
+    const nav = shell?.querySelector('.mobile-bottom-nav');
 
-    const writeProgress = () => {
-      rafId = 0;
+    const updateProgress = () => {
       const progress = Math.max(0, Math.min(1, emblaApi.scrollProgress()));
-      shell?.style.setProperty('--tab-progress', String(progress * Math.max(0, count - 1)));
-    };
-
-    const scheduleProgress = () => {
-      if (!rafId) rafId = requestAnimationFrame(writeProgress);
+      const tabProgress = progress * Math.max(0, count - 1);
+      if (indicator) {
+        indicator.style.transform = `translate3d(${tabProgress * 100}%, 0, 0)`;
+      }
+      if (nav) {
+        nav.style.setProperty('--tab-progress', String(tabProgress));
+      }
     };
 
     // Notify React on select (when Embla commits to a snap target).
     // The re-render is kept cheap by memoizing expensive child computations.
     const handleSelect = () => {
       const selectedIndex = emblaApi.selectedScrollSnap();
-      scheduleProgress();
+      updateProgress();
       if (selectedIndex === indexRef.current) return;
 
       indexRef.current = selectedIndex;
@@ -99,23 +101,22 @@ export default function useSwipeNav({ activeIndex, count, onIndexChange, disable
     };
 
     const handleSettle = () => {
-      scheduleProgress();
+      updateProgress();
       resetNativeScroll();
     };
 
-    writeProgress();
+    updateProgress();
     emblaApi
-      .on('scroll', scheduleProgress)
+      .on('scroll', updateProgress)
       .on('select', handleSelect)
-      .on('reInit', scheduleProgress)
+      .on('reInit', updateProgress)
       .on('settle', handleSettle);
 
     return () => {
-      if (rafId) cancelAnimationFrame(rafId);
       emblaApi
-        .off('scroll', scheduleProgress)
+        .off('scroll', updateProgress)
         .off('select', handleSelect)
-        .off('reInit', scheduleProgress)
+        .off('reInit', updateProgress)
         .off('settle', handleSettle);
     };
   }, [count, emblaApi, resetNativeScroll]);
