@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/auth';
 import { supabase } from '../lib/supabase';
 import { getCurrentMonthStr, getNextMonthStr, parseDueDateLogic, withTimeout, getMondaysUntilNextFifth } from '../lib/utils';
@@ -9,6 +9,8 @@ const TAB_ORDER = ['active', 'due', 'cashLog', 'settings'];
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const userId = user?.id;
+  const hasLoadedDashboardRef = useRef(false);
 
   const [activeTab, setActiveTab] = useState('active');
   const [homeTab, setHomeTab] = useState('current');
@@ -89,6 +91,7 @@ export default function Dashboard() {
       localStorage.removeItem(`offline_bill_updates_${user.id}`);
       localStorage.removeItem(`weekly_budget:${user.id}`);
     }
+    localStorage.removeItem('bill_tracker_last_user');
     localStorage.removeItem('offline_dashboard_data');
     localStorage.removeItem('offline_withdrawals');
     localStorage.removeItem('offline_bill_updates');
@@ -96,7 +99,8 @@ export default function Dashboard() {
   };
 
   const fetchDashboardData = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
+    if (!userId) return;
+    if (!silent && !hasLoadedDashboardRef.current) setLoading(true);
     try {
       let sData, bData, wData, subData, rbData = [];
 
@@ -105,11 +109,11 @@ export default function Dashboard() {
       if (navigator.onLine) {
         try {
           const [sRes, bRes, wRes, subRes, rbRes] = await withTimeout(Promise.all([
-            supabase.from('settings').select('*').eq('user_id', user.id).maybeSingle(),
-            supabase.from('bills').select('*').eq('user_id', user.id).order('id', { ascending: false }),
-            supabase.from('withdrawals').select('*').eq('user_id', user.id),
-            supabase.from('subscriptions').select('*').eq('user_id', user.id).order('renewal_date', { ascending: true }),
-            supabase.from('recurring_bills').select('*').eq('user_id', user.id)
+            supabase.from('settings').select('*').eq('user_id', userId).maybeSingle(),
+            supabase.from('bills').select('*').eq('user_id', userId).order('id', { ascending: false }),
+            supabase.from('withdrawals').select('*').eq('user_id', userId),
+            supabase.from('subscriptions').select('*').eq('user_id', userId).order('renewal_date', { ascending: true }),
+            supabase.from('recurring_bills').select('*').eq('user_id', userId)
           ]), 5000);
 
           if (sRes.error) throw sRes.error;
@@ -124,7 +128,7 @@ export default function Dashboard() {
           rbData = rbRes.data;
 
           fetchSuccess = true;
-          const userCacheKey = `offline_dashboard_data_${user.id}`;
+          const userCacheKey = `offline_dashboard_data_${userId}`;
           localStorage.setItem(userCacheKey, JSON.stringify({ sData, bData, wData, subData: subRes.data, rbData: rbRes.data }));
         } catch (e) {
           console.warn("Live fetch failed or timed out, falling back to cache", e);
@@ -132,7 +136,7 @@ export default function Dashboard() {
       }
 
       if (!fetchSuccess) {
-        const userCacheKey = `offline_dashboard_data_${user.id}`;
+        const userCacheKey = `offline_dashboard_data_${userId}`;
         const cache = JSON.parse(localStorage.getItem(userCacheKey) || localStorage.getItem('offline_dashboard_data') || '{}');
         sData = cache.sData || null;
         bData = cache.bData || [];
@@ -141,7 +145,7 @@ export default function Dashboard() {
         rbData = cache.rbData || [];
       }
 
-      const weeklyBudgetStorageKey = `weekly_budget:${user.id}`;
+      const weeklyBudgetStorageKey = `weekly_budget:${userId}`;
       const cachedWeeklyBudget = Number(localStorage.getItem(weeklyBudgetStorageKey));
       const hasDatabaseWeeklyBudget = sData?.weekly_budget !== null && sData?.weekly_budget !== undefined;
       const databaseWeeklyBudget = hasDatabaseWeeklyBudget ? Number(sData.weekly_budget) : NaN;
@@ -173,7 +177,7 @@ export default function Dashboard() {
         const hasOctBills = (bData || []).some(b => b.month === 'October 2026' && Number(b.amount) === 0);
         if (hasOctBills) {
           if (navigator.onLine) {
-            await supabase.from('bills').delete().eq('month', 'October 2026').eq('user_id', user.id).eq('amount', 0);
+            await supabase.from('bills').delete().eq('month', 'October 2026').eq('user_id', userId).eq('amount', 0);
           }
           bData = bData.filter(b => !(b.month === 'October 2026' && Number(b.amount) === 0));
         }
@@ -209,7 +213,7 @@ export default function Dashboard() {
           amount: 0,
           status: 'Unpaid',
           channel: rb.channel,
-          user_id: user.id
+          user_id: userId
         }));
         const { data: insertedBills } = await supabase.from('bills').insert(newBills).select();
         if (insertedBills) {
@@ -362,15 +366,16 @@ export default function Dashboard() {
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
-      if (!silent) setLoading(false);
+      hasLoadedDashboardRef.current = true;
+      setLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     const handleOnline = async () => {
-      if (!user) return;
+      if (!userId) return;
       try {
-        const withdrawalsKey = `offline_withdrawals_${user.id}`;
+        const withdrawalsKey = `offline_withdrawals_${userId}`;
         let queue = JSON.parse(localStorage.getItem(withdrawalsKey) || '[]');
         if (queue.length === 0) {
           const legacyQueue = JSON.parse(localStorage.getItem('offline_withdrawals') || '[]');
@@ -389,7 +394,7 @@ export default function Dashboard() {
               amount: item.amount,
               reason: item.reason,
               month: item.month,
-              user_id: item.user_id || user.id,
+              user_id: item.user_id || userId,
               date: item.date || new Date().toISOString()
             };
             const { error } = await supabase.from('withdrawals').upsert(payload, { onConflict: 'id' });
@@ -405,7 +410,7 @@ export default function Dashboard() {
           }
         }
 
-        const billUpdatesKey = `offline_bill_updates_${user.id}`;
+        const billUpdatesKey = `offline_bill_updates_${userId}`;
         let updatesQueue = JSON.parse(localStorage.getItem(billUpdatesKey) || '[]');
         if (updatesQueue.length === 0) {
           const legacyUpdates = JSON.parse(localStorage.getItem('offline_bill_updates') || '[]');
@@ -439,10 +444,10 @@ export default function Dashboard() {
     };
 
     window.addEventListener('online', handleOnline);
-    if (navigator.onLine && user) handleOnline();
-    if (user) fetchDashboardData();
+    if (navigator.onLine && userId) handleOnline();
+    if (userId) fetchDashboardData();
     return () => window.removeEventListener('online', handleOnline);
-  }, [user, fetchDashboardData]);
+  }, [userId, fetchDashboardData]);
 
   const updateLocalCache = (billId, payload) => {
     if (!user?.id) return;
