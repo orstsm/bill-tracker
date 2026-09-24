@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { getCurrentMonthStr, getNextMonthStr, parseDueDateLogic, withTimeout, getMondaysUntilNextFifth } from '../lib/utils';
 import useSwipeNav from '../hooks/useSwipeNav';
 import IosDashboard from '../components/IosDashboard';
+import { ensureUpcomingBills, reconcileBillPlaceholders } from '../lib/recurringBills';
 
 const TAB_ORDER = ['active', 'due', 'cashLog', 'settings'];
 
@@ -120,6 +121,7 @@ export default function Dashboard() {
           if (bRes.error) throw bRes.error;
           if (wRes.error) throw wRes.error;
           if (subRes.error) throw subRes.error;
+          if (rbRes.error) throw rbRes.error;
 
           sData = sRes.data;
           bData = bRes.data;
@@ -202,22 +204,19 @@ export default function Dashboard() {
         earlyRolloverMonth = currentCalMonth;
       }
 
-      // Auto-generate upcoming bills on the 15th
-      let upcomingBillsExist = (bData || []).some(b => b.month === nextCalMonth);
-      if (todayDay >= 15 && !upcomingBillsExist && (rbData || []).length > 0 && navigator.onLine) {
-        const newBills = (rbData || []).map(rb => ({
-          biller: rb.biller,
-          month: nextCalMonth,
-          statement_date: rb.statement_date,
-          due_date: rb.due_date,
-          amount: 0,
-          status: 'Unpaid',
-          channel: rb.channel,
-          user_id: userId
-        }));
-        const { data: insertedBills } = await supabase.from('bills').insert(newBills).select();
-        if (insertedBills) {
-          bData = [...(bData || []), ...insertedBills];
+      // Generate only missing instances after a successful live read. Stable
+      // primary keys make simultaneous fetches/devices safe to retry.
+      if (todayDay >= 15 && fetchSuccess && (rbData || []).length > 0 && navigator.onLine) {
+        try {
+          bData = await ensureUpcomingBills(supabase, {
+            userId,
+            month: nextCalMonth,
+            recurringBills: rbData,
+            existingBills: bData || [],
+          });
+          localStorage.setItem(`offline_dashboard_data_${userId}`, JSON.stringify({ sData, bData, wData, subData, rbData }));
+        } catch (error) {
+          console.warn('Could not generate upcoming bills; keeping the existing list.', error);
         }
       }
 
@@ -240,6 +239,10 @@ export default function Dashboard() {
           }
         }
       }
+
+      // Also reconcile the raw offline cache. Keep entered amounts/payment
+      // history intact and omit only matching untouched duplicate placeholders.
+      bData = reconcileBillPlaceholders(bData || [], [appActiveMonth, nextCalMonth]);
 
       let billsThisMonthSum = 0;
       let paidThisMonthSum = 0;
