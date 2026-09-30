@@ -1,143 +1,104 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import useEmblaCarousel from 'embla-carousel-react';
+import { useCallback, useEffect, useRef } from 'react';
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
-/**
- * Native-feeling page navigation powered by Embla's direct-manipulation
- * physics. The page rail and tab indicator share the same scroll progress so
- * they always remain visually connected to the user's finger.
- *
- * PERF: React state (activeTab) is updated on 'settle', NOT 'select'.
- * The 'select' event fires mid-animation; updating React state there triggers
- * a full re-render of the component tree (toggling inert/aria-hidden on 4
- * page sections) which blocks the main thread and drops frames.  The tab
- * indicator follows the finger purely via the --tab-progress CSS custom
- * property, so React doesn't need to know the new tab until settle.
- */
+// WebKit owns touch tracking, momentum and snapping. React commits only at rest.
 export default function useSwipeNav({ activeIndex, count, onIndexChange, disabled = false }) {
-  const indexRef = useRef(activeIndex);
-  const initialIndexRef = useRef(activeIndex);
-  const onIndexChangeRef = useRef(onIndexChange);
-  const disabledRef = useRef(disabled);
+  const viewportRef = useRef(null);
   const trackRef = useRef(null);
-
-  disabledRef.current = disabled;
-
-  useEffect(() => {
-    indexRef.current = activeIndex;
-  }, [activeIndex]);
-
-  useEffect(() => {
-    onIndexChangeRef.current = onIndexChange;
-  }, [onIndexChange]);
-
-  const watchDrag = useCallback((_api, event) => {
-    if (disabledRef.current) return false;
-
-    const target = event.target;
-    if (!(target instanceof Element)) return true;
-
-    return !target.closest('input, select, textarea, [contenteditable="true"], [role="slider"], [data-swipe-lock]');
-  }, []);
-
-  const options = useMemo(() => ({
-    active: true,
-    align: 'start',
-    axis: 'x',
-    containScroll: 'trimSnaps',
-    dragFree: false,
-    dragThreshold: 9,
-    duration: 18,
-    loop: false,
-    skipSnaps: false,
-    slidesToScroll: 1,
-    startIndex: initialIndexRef.current,
-    watchDrag,
-  }), [watchDrag]);
-
-  const [viewportRef, emblaApi] = useEmblaCarousel(options);
-
-  const resetNativeScroll = useCallback(() => {
-    if (!emblaApi) return;
-    const viewport = emblaApi.rootNode();
-    if (viewport && viewport.scrollLeft !== 0) viewport.scrollLeft = 0;
-  }, [emblaApi]);
-
-  const setSwipingClass = useCallback((isSwiping) => {
-    const shell = trackRef.current?.closest('.app-shell');
-    shell?.classList.toggle('is-tab-swiping', isSwiping);
-  }, []);
+  const indexRef = useRef(activeIndex);
+  const targetRef = useRef(activeIndex);
+  const changeRef = useRef(onIndexChange);
+  changeRef.current = onIndexChange;
 
   const scrollToIndex = useCallback((nextIndex, jump = false) => {
-    if (!emblaApi) return;
-    const boundedIndex = Math.max(0, Math.min(count - 1, nextIndex));
-    if (!jump && boundedIndex !== emblaApi.selectedScrollSnap()) {
-      setSwipingClass(true);
-    }
-    emblaApi.scrollTo(boundedIndex, jump);
-  }, [count, emblaApi, setSwipingClass]);
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const index = Math.max(0, Math.min(count - 1, nextIndex));
+    targetRef.current = index;
+    viewport.scrollTo({
+      left: index * viewport.clientWidth,
+      behavior: jump || window.matchMedia(REDUCED_MOTION_QUERY).matches ? 'instant' : 'smooth',
+    });
+  }, [count]);
 
   useEffect(() => {
-    if (!emblaApi) return undefined;
-
-    const viewport = emblaApi.rootNode();
-    const shell = viewport?.closest('.app-shell');
+    const viewport = viewportRef.current;
+    if (!viewport) return undefined;
+    const shell = viewport.closest('.app-shell');
     const indicator = shell?.querySelector('.tab-selection-indicator');
-
-    const updateProgress = () => {
-      const progress = Math.max(0, Math.min(1, emblaApi.scrollProgress()));
-      const tabProgress = progress * Math.max(0, count - 1);
-      if (indicator) {
-        indicator.style.transform = `translate3d(${tabProgress * 100}%, 0, 0)`;
+    let frame = 0;
+    let timer = 0;
+    let touching = false;
+    let width = viewport.clientWidth;
+    const updateIndicator = () => {
+      frame = 0;
+      const progress = Math.max(0, Math.min(count - 1, viewport.scrollLeft / (width || 1)));
+      if (indicator) indicator.style.transform = `translate3d(${progress * 100}%, 0, 0)`;
+    };
+    const settle = () => {
+      if (touching) return;
+      clearTimeout(timer);
+      updateIndicator();
+      shell?.classList.remove('is-tab-swiping');
+      const index = Math.max(0, Math.min(count - 1, Math.round(viewport.scrollLeft / (width || 1))));
+      targetRef.current = index;
+      if (index !== indexRef.current) {
+        indexRef.current = index;
+        changeRef.current(index);
       }
     };
-
-    const handleScroll = () => {
+    const onScroll = () => {
       shell?.classList.add('is-tab-swiping');
-      updateProgress();
+      if (!frame) frame = requestAnimationFrame(updateIndicator);
+      clearTimeout(timer);
+      // Fallback for iOS versions without scrollend; momentum resets the timer.
+      timer = window.setTimeout(settle, 160);
     };
-
-    // Keep direct manipulation outside React while the rail is moving. Embla's
-    // select event fires before the snap animation has finished, so committing
-    // activeTab here would reconcile all four pages during the animation.
-    const handleSelect = () => {
-      updateProgress();
+    const onTouchStart = () => { touching = true; };
+    const onTouchEnd = () => {
+      touching = false;
+      clearTimeout(timer);
+      timer = window.setTimeout(settle, 160);
     };
-
-    const handleSettle = () => {
-      updateProgress();
-      resetNativeScroll();
-      shell?.classList.remove('is-tab-swiping');
-
-      const selectedIndex = emblaApi.selectedScrollSnap();
-      if (selectedIndex === indexRef.current) return;
-
-      indexRef.current = selectedIndex;
-      onIndexChangeRef.current(selectedIndex);
-    };
-
-    updateProgress();
-    emblaApi
-      .on('scroll', handleScroll)
-      .on('select', handleSelect)
-      .on('reInit', updateProgress)
-      .on('settle', handleSettle);
-
+    const resize = new ResizeObserver(() => {
+      const nextWidth = viewport.clientWidth;
+      if (nextWidth === width) return;
+      width = nextWidth;
+      viewport.scrollTo({ left: targetRef.current * width, behavior: 'instant' });
+      updateIndicator();
+    });
+    viewport.scrollTo({ left: indexRef.current * width, behavior: 'instant' });
+    updateIndicator();
+    resize.observe(viewport);
+    viewport.addEventListener('scroll', onScroll, { passive: true });
+    viewport.addEventListener('scrollend', settle);
+    viewport.addEventListener('touchstart', onTouchStart, { passive: true });
+    viewport.addEventListener('touchend', onTouchEnd, { passive: true });
+    viewport.addEventListener('touchcancel', onTouchEnd, { passive: true });
     return () => {
-      emblaApi
-        .off('scroll', handleScroll)
-        .off('select', handleSelect)
-        .off('reInit', updateProgress)
-        .off('settle', handleSettle);
+      clearTimeout(timer);
+      cancelAnimationFrame(frame);
+      resize.disconnect();
+      shell?.classList.remove('is-tab-swiping');
+      viewport.removeEventListener('scroll', onScroll);
+      viewport.removeEventListener('scrollend', settle);
+      viewport.removeEventListener('touchstart', onTouchStart);
+      viewport.removeEventListener('touchend', onTouchEnd);
+      viewport.removeEventListener('touchcancel', onTouchEnd);
     };
-  }, [count, emblaApi, resetNativeScroll]);
+  }, [count]);
 
   useEffect(() => {
-    if (!emblaApi || emblaApi.selectedScrollSnap() === activeIndex) return;
-    const reduceMotion = window.matchMedia(REDUCED_MOTION_QUERY).matches;
-    scrollToIndex(activeIndex, reduceMotion);
-  }, [activeIndex, emblaApi, scrollToIndex]);
+    if (activeIndex === indexRef.current) return;
+    indexRef.current = activeIndex;
+    scrollToIndex(activeIndex);
+  }, [activeIndex, scrollToIndex]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (viewport) viewport.style.overflowX = disabled ? 'hidden' : '';
+  }, [disabled]);
 
   return { viewportRef, trackRef, scrollToIndex };
 }
