@@ -1,42 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-
-// Logic: due dates like "12 - Current", "5 - Next"
-function parseDueDateLogic(str, billMonthStr) {
-  if (!str || String(str).toLowerCase().includes('any')) return null;
-
-  const match = String(str).match(/\d+/);
-  if (!match) return null;
-
-  const day = parseInt(match[0], 10);
-  let baseDate = new Date(billMonthStr);
-  if (isNaN(baseDate.getTime())) baseDate = new Date();
-
-  let month = baseDate.getMonth();
-  let year = baseDate.getFullYear();
-
-  const lowerStr = String(str).toLowerCase();
-  if (lowerStr.includes('next') || lowerStr.includes('following')) {
-    month++;
-    if (month > 11) { month = 0; year++; }
-  }
-
-  const maxDaysInMonth = new Date(year, month + 1, 0).getDate();
-  const clampedDay = day > maxDaysInMonth ? maxDaysInMonth : day;
-
-  return new Date(year, month, clampedDay);
-}
-
-function getCurrentMonthStr() {
-  const d = new Date();
-  return d.toLocaleString('default', { month: 'long', year: 'numeric' });
-}
-
-function escapeHtml(str) {
-  return String(str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
+import { buildTelegramReminder } from '../src/lib/telegramReminders.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -72,7 +35,11 @@ export default async function handler(req, res) {
     });
   }
 
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  // Every scheduled run reads Supabase directly, never the app's offline cache.
+  const supabase = createClient(supabaseUrl, supabaseKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' }) },
+  });
 
   try {
     // 4. Fetch unpaid bills and active subscriptions strictly for OWNER_USER_ID
@@ -80,7 +47,8 @@ export default async function handler(req, res) {
       .from('bills')
       .select('*')
       .eq('user_id', ownerUserId)
-      .neq('status', 'Paid');
+      .neq('status', 'Paid')
+      .gt('amount', 0);
 
     const { data: subscriptions, error: subsError } = await supabase
       .from('subscriptions')
@@ -95,77 +63,10 @@ export default async function handler(req, res) {
       return res.status(200).json({ message: 'No action items found.' });
     }
 
-    const currentMonth = getCurrentMonthStr();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // 5. Filter for bills due within 7 days
-    const dueBills = [];
-    for (const b of (bills || [])) {
-      const dueDate = parseDueDateLogic(b.due_date, b.month || currentMonth);
-      if (dueDate) {
-        dueDate.setHours(0, 0, 0, 0);
-
-        const diffMs = dueDate.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
-        if (diffDays <= 7) {
-          dueBills.push({ ...b, diffDays });
-        }
-      }
-    }
-
-    // 6. Filter for subscriptions renewing within 5 days
-    const dueSubs = [];
-    for (const sub of (subscriptions || [])) {
-      if (!sub.renewal_date) continue;
-      const renewalDate = new Date(sub.renewal_date);
-      renewalDate.setHours(0, 0, 0, 0);
-
-      const diffMs = renewalDate.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
-      if (diffDays <= 5) {
-        dueSubs.push({ ...sub, diffDays });
-      }
-    }
-
-    if (dueBills.length === 0 && dueSubs.length === 0) {
+    const { message, dueBills, dueSubs } = buildTelegramReminder({ bills, subscriptions });
+    if (!message) {
       return res.status(200).json({ message: 'No bills or subscriptions due soon.' });
     }
-
-    dueBills.sort((a, b) => a.diffDays - b.diffDays);
-    dueSubs.sort((a, b) => a.diffDays - b.diffDays);
-
-    // 7. Format Telegram message with HTML escaping to prevent parse errors
-    let message = '';
-
-    if (dueBills.length > 0) {
-      message += `⚠️ <b>Action Required: ${dueBills.length} Bill${dueBills.length > 1 ? 's' : ''} Due Soon!</b>\n\n`;
-      dueBills.forEach((b) => {
-        const amt = Number(b.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
-        let status = '';
-        if (b.diffDays < 0) {
-          status = `🚨 <b>OVERDUE by ${Math.abs(b.diffDays)} days</b>`;
-        } else if (b.diffDays === 0) {
-          status = `⏰ <b>DUE TODAY</b>`;
-        } else {
-          status = `Due in ${b.diffDays} days`;
-        }
-        message += `• <b>${escapeHtml(b.biller)}</b>: ₱${amt}\n  ↳ ${status}\n\n`;
-      });
-    }
-
-    if (dueSubs.length > 0) {
-      if (message !== '') message += `---\n\n`;
-      message += `🔄 <b>Heads up: ${dueSubs.length} Subscription${dueSubs.length > 1 ? 's' : ''} Renewing Soon!</b>\n\n`;
-      dueSubs.forEach((sub) => {
-        const amt = Number(sub.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
-        message += `• <b>${escapeHtml(sub.name)}</b>: ₱${amt}\n  ↳ Renews in ${sub.diffDays} days (${escapeHtml(sub.cycle)})\n  ↳ <i>Ignore this if keeping it, or cancel now to avoid charges.</i>\n\n`;
-      });
-    }
-
-    message += `<i>Please manage these inside the Bill Tracker app.</i>`;
 
     // 8. Dispatch to Telegram
     const tgUrl = `https://api.telegram.org/bot${telegramBotToken}/sendMessage`;
